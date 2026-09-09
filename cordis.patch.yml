@@ -1,0 +1,16 @@
+# Test Observatory bundle patch: insert after the base layer so a profile that
+# lists this bundle gains the human /test command and the model-facing run_tests
+# tool. Both rows are id-targeted; a profile can override or disable either one.
+#
+# Rows reference this package's own entry points, so the plugin code resolves
+# through this one installed package.
+
+- insert:
+    # The model-facing executor: declared shell-command cases plus an HTML report.
+    - id: tool-test-runner
+      name: '@cbhdyl/dsh-test-observatory/tool'
+
+    # The human entry point: /test reads a suite file, runs it, and writes a
+    # Test Observatory report. Requires the commands service (dsh-base mounts it).
+    - id: command-test
+      name: '@cbhdyl/dsh-test-observatory/command'
