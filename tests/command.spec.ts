@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { SuiteConfigError, loadSuiteConfig, parseSuiteConfig } from '../src/command/config.ts'
 import { buildReportModel, runCase, truncate, MAX_CAPTURED_CHARS } from '../src/command/runner.ts'
 import { describeDetection, detectProject } from '../src/command/detect.ts'
+import { personaId, toExperienceSection } from '../src/command/experience.ts'
 import type { CaseOutcome } from '../src/command/runner.ts'
 
 let scratch: string | undefined
@@ -185,6 +186,37 @@ describe('parseSuiteConfig journeys', () => {
     expect(() => parseSuiteConfig('journeys:\n  - persona: P\n    name: N\n    device: D\n    steps:\n      - label: s\n        actions:\n          - kind: screenshot\n            caption: c\n            category: nope\ncases:\n  - name: a\n    command: x')).toThrow(/"category" must be key/)
     expect(() => parseSuiteConfig('journeys:\n  - persona: P\n    name: N\n    device: D\n    viewport: {}\n    steps:\n      - label: s\n        actions:\n          - kind: goto\n            url: u\ncases:\n  - name: a\n    command: x')).toThrow(/"width" and "height" are required/)
     expect(() => parseSuiteConfig('journeys:\n  - persona: P\n    name: N\n    device: D\n    viewport: 3\n    steps:\n      - label: s\n        actions:\n          - kind: goto\n            url: u\ncases:\n  - name: a\n    command: x')).toThrow(/viewport: must be a mapping/)
+  })
+})
+
+describe('personaId', () => {
+  it('keeps non-Latin persona names distinct', () => {
+    expect(personaId('首次访问用户')).toBe('首次访问用户')
+    expect(personaId('熟练用户')).toBe('熟练用户')
+    expect(personaId('首次访问用户')).not.toBe(personaId('熟练用户'))
+  })
+
+  it('slugs a Latin name and falls back only for an empty name', () => {
+    expect(personaId('Error-prone user')).toBe('error-prone-user')
+    expect(personaId('  ')).toBe('persona')
+  })
+})
+
+describe('toExperienceSection', () => {
+  it('gives two Chinese personas distinct ids and separate journeys', () => {
+    const run = {
+      shots: [],
+      checks: [],
+      journeys: [
+        { persona: '首次访问用户', device: 'Desktop', name: '结账', passed: true, steps: [{ label: '打开', state: 'PASS' as const, durationMs: 10 }] },
+        { persona: '熟练用户', device: 'Desktop', name: '批量下单', passed: false, steps: [{ label: '提交', state: 'FAIL' as const, durationMs: 10, error: '超时' }] },
+      ],
+    }
+    const section = toExperienceSection(run)
+    const ids = section.personas.map(persona => persona.id)
+    expect(new Set(ids).size).toBe(2)
+    expect(section.journeys.map(journey => journey.personaId)).toEqual(ids)
+    expect(section.findings).toHaveLength(1)
   })
 })
 

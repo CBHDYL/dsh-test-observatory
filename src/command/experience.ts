@@ -25,12 +25,14 @@ export interface ExperienceSection {
 }
 
 /**
- * Build a stable persona id from a display name.
+ * Build a stable persona id from a display name. Unicode letters and digits are
+ * kept, so a non-Latin persona name stays distinct instead of collapsing onto
+ * the same fallback id as every other non-Latin name.
  * @param name - the persona display name.
  * @returns a lowercase slug usable as a data attribute.
  */
-function personaId(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'persona'
+export function personaId(name: string): string {
+  return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'persona'
 }
 
 /**
