@@ -149,6 +149,8 @@ export interface ReportInputs {
   readonly environment: string
   /** Experience section, present only when a human-simulation run happened. */
   readonly experienceSection?: ExperienceInputs
+  /** Parsed framework-level test rows, replacing command summary rows when present. */
+  readonly structuredTests?: readonly ReportTest[]
 }
 
 /**
@@ -158,9 +160,12 @@ export interface ReportInputs {
  * @returns the renderable report model.
  */
 export function buildReportModel(outcomes: readonly CaseOutcome[], inputs: ReportInputs): ReportModel {
-  const total = outcomes.length
-  const passed = outcomes.filter(outcome => outcome.passed).length
-  const failed = total - passed
+  const tests = inputs.structuredTests ?? outcomes.map(toReportTest)
+  const total = tests.length
+  const passed = tests.filter(test => test.status === 'passed').length
+  const failed = tests.filter(test => test.status === 'failed').length
+  const skipped = tests.filter(test => test.status === 'skipped').length
+  const flaky = tests.filter(test => test.status === 'flaky').length
   const durationSeconds = Math.round(outcomes.reduce((sum, outcome) => sum + outcome.durationMs, 0) / 10) / 100
   const passRate = total === 0 ? 0 : Math.round((passed / total) * 1000) / 10
   const project = inputs.config.report?.project ?? 'Test suite'
@@ -192,28 +197,24 @@ export function buildReportModel(outcomes: readonly CaseOutcome[], inputs: Repor
       { label: 'Duration', value: formatDuration(durationSeconds), delta: 'wall clock' },
       { label: 'Failed', value: String(failed), delta: failed === 0 ? 'none' : 'needs review', ...(failed > 0 ? { worse: true } : {}) },
     ],
-    summary: { total, passed, failed, skipped: 0, flaky: 0, durationSeconds, coveragePercent: null },
-    trend: [{ run: inputs.runId, score, durationSeconds }],
+    summary: { total, passed, failed, skipped, flaky, durationSeconds, coveragePercent: null },
+    trend: [],
     causes: failed === 0
       ? []
       : [{ label: 'Non-zero exit', count: failed }],
-    slowest: [...outcomes]
-      .sort((left, right) => right.durationMs - left.durationMs)
+    slowest: [...tests]
+      .sort((left, right) => right.durationSeconds - left.durationSeconds)
       .slice(0, 10)
-      .map((outcome, index) => ({
-        rank: index + 1,
-        name: outcome.testCase.name,
-        suite: outcome.testCase.suite ?? 'Suite',
-        durationSeconds: Math.round(outcome.durationMs / 10) / 100,
-      })),
-    timeline: outcomes.map(outcome => ({
-      label: outcome.testCase.name,
-      startSeconds: 0,
-      durationSeconds: Math.max(Math.round(outcome.durationMs / 10) / 100, 0.1),
-    })),
+      .map((test, index) => ({ rank: index + 1, name: test.name, suite: test.suite, durationSeconds: test.durationSeconds })),
+    timeline: outcomes.reduce<{ items: { label: string; startSeconds: number; durationSeconds: number }[]; elapsed: number }>((state, outcome) => {
+      const measuredDuration = Math.round(outcome.durationMs / 10) / 100
+      state.items.push({ label: outcome.testCase.name, startSeconds: state.elapsed, durationSeconds: measuredDuration })
+      state.elapsed += measuredDuration
+      return state
+    }, { items: [], elapsed: 0 }).items,
     regressions: [],
     recovered: [],
-    tests: outcomes.map(toReportTest),
+    tests,
   }
   if (inputs.experienceSection !== undefined) {
     return { ...model, ...inputs.experienceSection }

@@ -40,6 +40,12 @@ function embedModel(model: ReportModel): string {
  * @param body - the reviewed report body markup.
  * @returns the markup with the experience section removed.
  */
+function stripEvidence(body: string): string {
+  const start=body.indexOf('<!--EVIDENCE_START-->'),end=body.indexOf('<!--EVIDENCE_END-->')
+  if(start===-1||end===-1||end<start)return body
+  return body.slice(0,start)+body.slice(end+'<!--EVIDENCE_END-->'.length)
+}
+
 function stripExperience(body: string): string {
   const withoutChecks = stripSection(body, 'id="checksSection"')
   const start = withoutChecks.indexOf('<!--XP_START-->')
@@ -77,7 +83,9 @@ export function renderReport(model: ReportModel): string {
     '<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">',
     '<title>' + title + '</title>',
     '<style>' + REPORT_STYLE + '</style></head><body><div class=\"shell\">',
-    model.experience === undefined ? stripExperience(REPORT_BODY) : REPORT_BODY,
+    (model.evidence?.length ?? 0) === 0 && (model.findings?.length ?? 0) === 0
+      ? stripEvidence(model.experience === undefined ? stripExperience(REPORT_BODY) : REPORT_BODY)
+      : model.experience === undefined ? stripExperience(REPORT_BODY) : REPORT_BODY,
     '<script>window.__OBSERVATORY__=' + embedModel(model) + ';</script>',
     REPORT_OVERLAY,
     '<script>' + REPORT_SCRIPT + '</script>',

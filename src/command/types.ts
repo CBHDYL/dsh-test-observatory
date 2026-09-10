@@ -7,6 +7,17 @@ import type { JourneySpec } from '../experience/types.ts'
 
 export type { JourneySpec }
 
+/** Supported structured result formats emitted by test frameworks. */
+export type StructuredResultFormat = 'junit' | 'vitest' | 'jest' | 'playwright' | 'pytest' | 'api' | 'performance'
+
+/** One structured result artifact written by a declared command. */
+export interface StructuredResultSpec {
+  /** Parser selected for the artifact. */
+  readonly format: StructuredResultFormat
+  /** Artifact path, resolved from the session working directory. */
+  readonly path: string
+}
+
 /** One shell-command test case declared in the suite configuration. */
 export interface SuiteCase {
   /** Test case name shown in the report. */
@@ -21,6 +32,8 @@ export interface SuiteCase {
   readonly suite?: string
   /** Owning team or module shown in the report. */
   readonly owner?: string
+  /** Optional framework artifact that expands this command into test-level rows. */
+  readonly result?: StructuredResultSpec
 }
 
 /** Report-level options of the suite configuration. */
@@ -31,6 +44,8 @@ export interface SuiteReportOptions {
   readonly outputPath?: string
   /** Project name shown in the report header. */
   readonly project?: string
+  /** History JSON path; set to false to disable history. */
+  readonly historyPath?: string | false
 }
 
 /** The complete `test-observatory.yml` document. */

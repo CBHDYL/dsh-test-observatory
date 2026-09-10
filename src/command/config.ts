@@ -77,12 +77,14 @@ function toCase(raw: unknown, index: number): SuiteCase {
   const timeoutMs = optionalPositiveInt(record, 'timeoutMs', where)
   const suite = record['suite']
   const owner = record['owner']
+  const rawResult = record['result']
   if (suite !== undefined && typeof suite !== 'string') {
     throw new SuiteConfigError(`${where}: "suite" must be a string`)
   }
   if (owner !== undefined && typeof owner !== 'string') {
     throw new SuiteConfigError(`${where}: "owner" must be a string`)
   }
+  const result = rawResult === undefined ? undefined : toStructuredResult(rawResult, `${where}.result`)
   return {
     name,
     command,
@@ -90,7 +92,20 @@ function toCase(raw: unknown, index: number): SuiteCase {
     ...(timeoutMs === undefined ? {} : { timeoutMs }),
     ...(suite === undefined ? {} : { suite }),
     ...(owner === undefined ? {} : { owner }),
+    ...(result === undefined ? {} : { result }),
   }
+}
+
+/** Validate one structured framework artifact declaration. */
+function toStructuredResult(raw: unknown, where: string): NonNullable<SuiteCase['result']> {
+  const record = asRecord(raw)
+  if (record === null) throw new SuiteConfigError(`${where}: must be a mapping`)
+  const format = requireString(record, 'format', where)
+  const formats = ['junit', 'vitest', 'jest', 'playwright', 'pytest', 'api', 'performance'] as const
+  if (!formats.includes(format as typeof formats[number])) {
+    throw new SuiteConfigError(`${where}.format: must be junit, vitest, jest, playwright, pytest, api or performance`)
+  }
+  return { format: format as typeof formats[number], path: requireString(record, 'path', where) }
 }
 
 /**
@@ -102,7 +117,7 @@ function toReportOptions(raw: unknown): SuiteReportOptions {
   if (raw === undefined) return {}
   const record = asRecord(raw)
   if (record === null) throw new SuiteConfigError('report: must be a mapping')
-  const options: { title?: string; outputPath?: string; project?: string } = {}
+  const options: { title?: string; outputPath?: string; project?: string; historyPath?: string | false } = {}
   for (const key of ['title', 'outputPath', 'project'] as const) {
     const value = record[key]
     if (value === undefined) continue
@@ -110,6 +125,11 @@ function toReportOptions(raw: unknown): SuiteReportOptions {
       throw new SuiteConfigError(`report.${key}: must be a non-empty string`)
     }
     options[key] = value
+  }
+  const historyPath = record['historyPath']
+  if (historyPath !== undefined) {
+    if (historyPath !== false && (typeof historyPath !== 'string' || historyPath.trim().length === 0)) throw new SuiteConfigError('report.historyPath: must be a non-empty string or false')
+    options.historyPath = historyPath
   }
   return options
 }

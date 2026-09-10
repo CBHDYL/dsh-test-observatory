@@ -27,6 +27,50 @@ export interface ReportTest {
   readonly stdout?: string
   /** Captured stderr, present when the case produced output. */
   readonly stderr?: string
+  /** Failure message or assertion, present when the test failed. */
+  readonly error?: string
+  /** Number of execution attempts reported by the framework. */
+  readonly attempts?: number
+  /** Framework or producer that emitted this result. */
+  readonly framework?: string
+  /** Real artifacts such as screenshots, videos, traces or reports. */
+  readonly attachments?: readonly TestAttachment[]
+  /** API observation when this row represents an HTTP check. */
+  readonly api?: ApiObservation
+  /** Performance observation when this row represents a threshold check. */
+  readonly performance?: PerformanceObservation
+}
+
+/** One measured API exchange. */
+export interface ApiObservation {
+  readonly method: string
+  readonly url: string
+  readonly expectedStatus?: number
+  readonly actualStatus: number
+  readonly durationMs?: number
+}
+
+/** One measured performance check. */
+export interface PerformanceObservation {
+  readonly metric: string
+  readonly value: number
+  readonly unit: string
+  readonly threshold?: number
+  readonly direction?: 'max' | 'min'
+  readonly p50?: number
+  readonly p95?: number
+  readonly p99?: number
+  readonly throughput?: number
+}
+
+/** One file artifact attached to a structured test result. */
+export interface TestAttachment {
+  /** Display label. */
+  readonly name: string
+  /** Artifact kind. */
+  readonly kind: 'screenshot' | 'video' | 'trace' | 'report' | 'other'
+  /** File path as emitted by the framework. */
+  readonly path: string
 }
 
 /** One root-cause cluster of failures. */

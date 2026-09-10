@@ -24,7 +24,7 @@ function fullModel(): ReportModel {
     journeys: [{ personaId: 'new', name: 'Checkout', steps: [{ label: 'Open', state: 'PASS', seconds: 1 }] }],
     evidence: [{ title: 'Shot', personaId: 'new', kind: 'key', meta: 'Desktop' }],
     findings: [{ id: 'f1', severity: 'HIGH', dimension: 'Feedback', deductedPoints: 2, title: 'No progress', observation: 'Observed', scope: 'Checkout', recoverablePoints: 2, evidenceIds: ['evidence-1'] }],
-    tests: [{ name: 'case', path: 'a.ts', status: 'failed', suite: 'Suite', durationSeconds: 1, owner: 'Team' }],
+    tests: [{ name: 'case', path: 'a.ts', status: 'failed', suite: 'Suite', durationSeconds: 1, owner: 'Team', error: 'expected true', attempts: 2, framework: 'playwright', attachments: [{ name: 'trace', kind: 'trace', path: 'trace.zip' }] }],
   }
 }
 
@@ -54,6 +54,9 @@ describe('renderReport', () => {
     expect(html.startsWith('<!DOCTYPE html>')).toBe(true)
     expect(html.endsWith('</body></html>')).toBe(true)
     expect(/https?:\/\//.test(html)).toBe(false)
+    expect(html).toContain('.drawer{position:fixed')
+    expect(html).toContain('.xp-modal{position:fixed')
+    expect(html).toContain('.modal-card{width:min(920px,96vw)')
   })
 
   it('escapes the project name in the title and never terminates its own script', () => {
@@ -70,6 +73,10 @@ describe('renderReport', () => {
     expect(document.querySelectorAll('#evidenceGrid .evidence')).toHaveLength(1)
     expect(document.querySelectorAll('#tbody tr')).toHaveLength(1)
     expect(document.getElementById('heroScore')?.textContent).toBe('88')
+    ;(document.querySelector('#tbody tr') as HTMLElement).click()
+    expect(document.getElementById('outCommand')?.textContent).toBe('expected true')
+    expect(document.getElementById('outNote')?.textContent).toContain('Attempts: 2')
+    expect(document.getElementById('testAttachments')?.textContent).toContain('trace.zip')
   })
 
   it('omits the experience section when the run produced no simulation data', () => {
@@ -81,6 +88,10 @@ describe('renderReport', () => {
     expect(body).not.toContain('id="personas"')
     expect(body).toContain('Test details')
     expect(body).toContain('Visual evidence')
+  })
+
+  it('removes empty evidence and findings cards', () => {
+    const model={...fullModel(),evidence:[],findings:[]};const html=renderReport(model);expect(html).not.toContain('id="evidenceGrid"');expect(html).not.toContain('id="findings"')
   })
 
   it('keeps the experience section when simulation data is present', () => {

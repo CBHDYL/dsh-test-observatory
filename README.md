@@ -24,12 +24,16 @@ report:
   title: Release candidate
   project: Atlas Shop
   outputPath: reports/test-observatory.html
+  historyPath: .test-observatory/history.json
 cases:
   - name: Unit tests
     command: pnpm run test
     suite: Unit
     owner: Platform
     timeoutMs: 600000
+    result:
+      format: vitest
+      path: reports/vitest.json
   - name: Typecheck
     command: pnpm run typecheck
 journeys:
@@ -65,6 +69,12 @@ Commands:
 /test path/to/suite.yml   run the named configuration
 /test auto                detect the project and print a declaration to paste
 ```
+
+### Structured results
+
+A case can expand into real test-level rows when its command writes an artifact. Set `result.format` to `junit`, `pytest`, `vitest`, `jest`, `playwright`, `api` or `performance`, and set `result.path` relative to the session working directory. History is retained for 20 runs by default; set `report.historyPath: false` to disable it.
+
+Playwright rows retain retry count and screenshot/video/trace paths. API rows retain method, URL, expected and actual status, and duration. Performance rows retain thresholds, P50/P95/P99 and throughput when the artifact provides them.
 
 ## Browser
 
@@ -108,7 +118,7 @@ Violations are deduplicated by rule and observation, so one page defect seen by 
 - Visual quality covers five objective rules, not aesthetics: spacing, alignment and hierarchy are not measured.
 - Journeys run sequentially in one browser, with optional per-step retries.
 - Screenshots are embedded as data URIs; a capture over 400 KB is re-encoded and finally dropped if still too large.
-- The trajectory chart has one point per run; historical comparison needs earlier runs supplied by a producer.
+- History stores the latest 20 compact run snapshots in `.test-observatory/history.json`; delete the file to reset comparisons.
 
 ## License
 

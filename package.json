@@ -1,7 +1,7 @@
 {
   "name": "@cbhdyl/dsh-test-observatory",
   "description": "Test Observatory for DeepSeek Harness: the /test command, the run_tests tool, human-simulation browser journeys with screenshots, and a self-contained HTML quality report",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publishConfig": {
     "access": "public"
   },
@@ -48,6 +48,16 @@
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
+  "files": [
+    "lib/*.js",
+    "lib/command/index.js",
+    "lib/tool/index.js",
+    "lib/report/index.js",
+    "lib/experience/index.js",
+    "lib/types/**/*.d.ts",
+    "cordis.patch.yml",
+    "README.md"
+  ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

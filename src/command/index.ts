@@ -15,6 +15,8 @@ import { SuiteConfigError, loadSuiteConfig } from './config.ts'
 import { buildReportModel, runCase } from './runner.ts'
 import { toExperienceSection } from './experience.ts'
 import { describeDetection, detectProject } from './detect.ts'
+import { parseStructuredResult } from './structured.ts'
+import { projectHistory } from './history.ts'
 import { runExperience } from '../experience/index.ts'
 
 export const name = 'command-test'
@@ -72,7 +74,16 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
   const experienceSection = config.journeys === undefined
     ? undefined
     : toExperienceSection(await runExperience({ journeys: config.journeys, signal: invocation.signal }))
-  const model = buildReportModel(outcomes, {
+  const structuredTests = []
+  for (const outcome of outcomes) {
+    if (outcome.testCase.result === undefined) continue
+    try {
+      structuredTests.push(...await parseStructuredResult(outcome.testCase.result, outcome.testCase, workspace))
+    } catch (error: unknown) {
+      return { kind: 'error', text: `could not read structured result for ${outcome.testCase.name}: ${error instanceof Error ? error.message : String(error)}` }
+    }
+  }
+  let model = buildReportModel(outcomes, {
     config,
     runAt: new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC',
     runId: String(Date.now()).slice(-6),
@@ -80,7 +91,36 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
     commit: '',
     environment: 'local',
     ...(experienceSection === undefined ? {} : { experienceSection }),
+    ...(structuredTests.length === 0 ? {} : { structuredTests }),
   })
+  const historyPath = config.report?.historyPath
+  if (historyPath !== false) {
+    try {
+      const projection = await projectHistory(resolve(workspace, historyPath ?? '.test-observatory/history.json'), model)
+      const historyCounts = { passed: projection.tests.filter(test => test.status === 'passed').length, failed: projection.tests.filter(test => test.status === 'failed').length, skipped: projection.tests.filter(test => test.status === 'skipped').length, flaky: projection.tests.filter(test => test.status === 'flaky').length }
+      const passRate = model.summary.total === 0 ? 0 : Math.round(historyCounts.passed / model.summary.total * 1000) / 10
+      const hasRisk = historyCounts.failed > 0 || historyCounts.flaky > 0
+      model = {
+        ...model,
+        trend: projection.trend,
+        regressions: projection.regressions,
+        recovered: projection.recovered,
+        tests: projection.tests,
+        causes: historyCounts.failed === 0 ? [] : [{ label: 'Failed structured test', count: historyCounts.failed }],
+        slowest: [...projection.tests].sort((left, right) => right.durationSeconds - left.durationSeconds).slice(0, 10).map((test, index) => ({ rank: index + 1, name: test.name, suite: test.suite, durationSeconds: test.durationSeconds })),
+        summary: { ...model.summary, ...historyCounts },
+        verdict: { ...model.verdict, score: Math.round(passRate), headline: historyCounts.failed > 0 ? historyCounts.failed + ' tests failed.' : historyCounts.flaky > 0 ? historyCounts.flaky + ' tests are flaky.' : 'Every test passed.', label: hasRisk ? 'Suite needs review' : 'Suite passing', summary: hasRisk ? 'Review failed and flaky tests before release.' : 'The test suite completed without failures.', confidence: passRate + '% stable pass rate', risk: hasRisk ? 'Historical comparison found unstable or failing tests.' : 'No failing or flaky test in this run.' },
+        kpis: [
+          { label: 'Pass rate', value: passRate + '%', delta: historyCounts.passed + ' of ' + model.summary.total, ...(hasRisk ? { worse: true } : {}) },
+          { label: 'Total tests', value: String(model.summary.total), delta: model.summary.total + ' observed' },
+          model.kpis[2]!,
+          { label: 'Needs review', value: String(historyCounts.failed + historyCounts.flaky), delta: historyCounts.flaky ? historyCounts.flaky + ' flaky' : historyCounts.failed ? historyCounts.failed + ' failed' : 'none', ...(hasRisk ? { worse: true } : {}) },
+        ],
+      }
+    } catch (error: unknown) {
+      return { kind: 'error', text: `test history could not be updated: ${error instanceof Error ? error.message : String(error)}` }
+    }
+  }
   const document = renderReport(model)
   try {
     await mkdir(dirname(outputPath), { recursive: true })
@@ -89,9 +129,10 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
     return { kind: 'error', text: `report could not be written to ${outputPath}: ${error instanceof Error ? error.message : String(error)}` }
   }
 
-  const failed = outcomes.filter(outcome => !outcome.passed)
-  const headline = `${outcomes.length - failed.length}/${outcomes.length} passed. Report: ${outputPath}`
-  return failed.length === 0
+  const failedTests = model.tests.filter(test => test.status === 'failed')
+  const unstable = model.summary.flaky === 0 ? '' : ` ${model.summary.flaky} flaky.`
+  const headline = `${model.summary.passed}/${model.summary.total} passed.${unstable} Report: ${outputPath}`
+  return failedTests.length === 0
     ? { kind: 'success', text: headline }
-    : { kind: 'success', text: `${headline}\nFailed: ${failed.map(outcome => outcome.testCase.name).join(', ')}` }
+    : { kind: 'success', text: `${headline}\nFailed: ${failedTests.map(test => test.name).join(', ')}` }
 }

@@ -54,6 +54,14 @@ describe('parseSuiteConfig', () => {
     })
   })
 
+  it('parses structured results and history options', () => {
+    const config=parseSuiteConfig(['report:','  historyPath: .reports/history.json','cases:','  - name: Unit','    command: pnpm test','    result:','      format: vitest','      path: reports/vitest.json'].join('\n'))
+    expect(config.report?.historyPath).toBe('.reports/history.json')
+    expect(config.cases[0]?.result).toEqual({format:'vitest',path:'reports/vitest.json'})
+    expect(()=>parseSuiteConfig(['cases:','  - name: x','    command: x','    result:','      format: unknown','      path: a'].join('\n'))).toThrow(/result.format/)
+    expect(()=>parseSuiteConfig(['report:','  historyPath: true','cases:','  - name: x','    command: x'].join('\n'))).toThrow(/historyPath/)
+  })
+
   it('rejects invalid YAML with a message naming the document', () => {
     expect(() => parseSuiteConfig('cases: [\n')).toThrow(SuiteConfigError)
     expect(() => parseSuiteConfig('cases: [\n')).toThrow(/not valid YAML/)
@@ -357,6 +365,8 @@ describe('buildReportModel', () => {
     expect(model.verdict.score).toBe(100)
     expect(model.verdict.label).toBe('Suite passing')
     expect(model.regressions).toEqual([])
+    expect(model.trend).toEqual([])
+    expect(model.timeline).toEqual([{label:'a',startSeconds:0,durationSeconds:0.1},{label:'b',startSeconds:0.1,durationSeconds:0.3}])
   })
 
   it('summarizes a failing run and ranks the slowest cases', () => {

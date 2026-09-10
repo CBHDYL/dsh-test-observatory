@@ -54,6 +54,7 @@ report:
   title: 发布候选报告          # 可选，报告标题
   project: Atlas Shop          # 可选，报告头部项目名
   outputPath: test-report.html # 可选，默认 test-observatory-report.html
+  historyPath: .test-observatory/history.json # 可选；false 表示关闭历史
 
 cases:                          # 必填，至少一条
   - name: 单元测试              # 必填
@@ -62,6 +63,9 @@ cases:                          # 必填，至少一条
     timeoutMs: 600000           # 可选
     suite: Unit                 # 可选，报告分组
     owner: Platform             # 可选，报告显示归属
+    result:                      # 可选，读取框架生成的测试级结果
+      format: pytest             # junit/pytest/vitest/jest/playwright/api/performance
+      path: reports/junit.xml    # 相对项目根
 
 journeys:                       # 可选；有它才有体验评测区块
   - persona: 首次访问用户        # 必填，报告里的角色名
@@ -104,6 +108,10 @@ journeys:                       # 可选；有它才有体验评测区块
 | `expectText` | `text` | 等文本出现 |
 | `expectVisible` | `selector` | 等元素可见 |
 | `screenshot` | `caption`, `category` | 截图（`key`/`fail`/`mobile`/`final`） |
+
+### 结构化结果
+
+当命令产生 JSON 或 JUnit XML 时，声明 `result` 后报告按真实测试明细展示，而不是只显示一条命令。Playwright 保留重试和附件；API 保留状态码与耗时；性能结果保留阈值、P50/P95/P99 与吞吐。默认保留最近 20 次紧凑历史，用于趋势、回归、恢复和 Flaky 判断。
 
 ## 4. 运行
 
