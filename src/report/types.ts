@@ -23,6 +23,10 @@ export interface ReportTest {
   readonly durationSeconds: number
   /** Owning team or module. */
   readonly owner: string
+  /** Captured stdout, present when the case produced output. */
+  readonly stdout?: string
+  /** Captured stderr, present when the case produced output. */
+  readonly stderr?: string
 }
 
 /** One root-cause cluster of failures. */

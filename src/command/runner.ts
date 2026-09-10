@@ -106,6 +106,8 @@ function toReportTest(outcome: CaseOutcome): ReportTest {
     suite: outcome.testCase.suite ?? 'Suite',
     durationSeconds: Math.round(outcome.durationMs / 10) / 100,
     owner: outcome.testCase.owner ?? 'Unassigned',
+    ...(outcome.stdout.length === 0 ? {} : { stdout: outcome.stdout }),
+    ...(outcome.stderr.length === 0 ? {} : { stderr: outcome.stderr }),
   }
 }
 
