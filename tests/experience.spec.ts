@@ -74,7 +74,9 @@ describe('runExperience app-page guard', () => {
   it('skips page checks when the journey never reached the app', async () => {
     const page = {
       goto: async () => { throw new Error('net::ERR_CONNECTION_REFUSED') },
+      waitForLoadState: async () => {},
       url: () => 'about:blank',
+      waitForLoadState: async () => {},
       evaluate: async () => { throw new Error('should not be called') },
       addScriptTag: async () => { throw new Error('should not be called') },
       close: async () => {},
@@ -96,7 +98,9 @@ describe('runExperience app-page guard', () => {
   it('runs page checks when the app page did load', async () => {
     const page = {
       goto: async () => {},
+      waitForLoadState: async () => {},
       url: () => 'http://127.0.0.1:8000/',
+      waitForLoadState: async () => {},
       evaluate: async () => [],
       addScriptTag: async () => {},
       close: async () => {},
@@ -118,7 +122,9 @@ describe('runExperience check containment', () => {
   it('records a failing visual check as a finding instead of throwing', async () => {
     const page = {
       goto: async () => {},
+      waitForLoadState: async () => {},
       url: () => 'http://example.test/app',
+      waitForLoadState: async () => {},
       evaluate: async () => { throw new Error('Execution context was destroyed, most likely because of a navigation') },
       addScriptTag: async () => {},
       close: async () => {},
@@ -141,7 +147,9 @@ describe('runExperience check containment', () => {
   it('records a failing accessibility scan as a finding instead of throwing', async () => {
     const page = {
       goto: async () => {},
+      waitForLoadState: async () => {},
       url: () => 'http://example.test/app',
+      waitForLoadState: async () => {},
       evaluate: async () => [],
       addScriptTag: async () => { throw new Error('page closed') },
       close: async () => {},
@@ -165,7 +173,9 @@ describe('runExperience', () => {
     const closed: string[] = []
     const fakePage = {
       goto: async () => {},
+      waitForLoadState: async () => {},
       click: async () => { throw new Error('no such element') },
+      waitForLoadState: async () => {},
       fill: async () => {},
       getByText: () => ({ first: () => ({ waitFor: async () => {} }) }),
       locator: () => ({ first: () => ({ waitFor: async () => {} }) }),
@@ -201,6 +211,7 @@ describe('runExperience', () => {
   it('records a screenshot as a bounded data URI', async () => {
     const fakePage = {
       goto: async () => {},
+      waitForLoadState: async () => {},
       getByText: () => ({ first: () => ({ waitFor: async () => {} }) }),
       locator: () => ({ first: () => ({ waitFor: async () => {} }) }),
       screenshot: async () => Buffer.from('12345'),
@@ -232,6 +243,7 @@ describe('runExperience', () => {
       click: async (selector: string) => { calls.push('click:' + selector) },
       fill: async (selector: string, value: string) => { calls.push('fill:' + selector + '=' + value) },
       getByText: (text: string) => ({ first: () => ({ waitFor: async () => { calls.push('text:' + text) } }) }),
+      waitForLoadState: async () => {},
       locator: (selector: string) => ({ first: () => ({ waitFor: async () => { calls.push('visible:' + selector) } }) }),
       screenshot: async () => Buffer.from('png'),
       close: async () => {},
@@ -274,6 +286,7 @@ describe('runExperience', () => {
     const big = Buffer.alloc(500_000)
     const fakePage = {
       goto: async () => {},
+      waitForLoadState: async () => {},
       getByText: () => ({ first: () => ({ waitFor: async () => {} }) }),
       locator: () => ({ first: () => ({ waitFor: async () => {} }) }),
       screenshot: async () => big,

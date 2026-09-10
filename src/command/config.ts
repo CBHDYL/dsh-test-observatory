@@ -196,6 +196,18 @@ function toAction(raw: unknown, where: string): JourneySpec['steps'][number]['ac
       return { kind: 'expectText', text: requireString(record, 'text', where) }
     case 'fill':
       return { kind: 'fill', selector: requireString(record, 'selector', where), value: requireString(record, 'value', where) }
+    case 'wait': {
+      const ms = optionalPositiveInt(record, 'ms', where)
+      const selector = record['selector']
+      if (selector !== undefined && (typeof selector !== 'string' || selector.trim().length === 0)) {
+        throw new SuiteConfigError(`${where}: "selector" must be a non-empty string`)
+      }
+      return {
+        kind: 'wait',
+        ...(ms === undefined ? {} : { ms }),
+        ...(selector === undefined ? {} : { selector }),
+      }
+    }
     case 'screenshot': {
       const category = record['category']
       if (category !== 'key' && category !== 'fail' && category !== 'mobile' && category !== 'final') {
@@ -204,7 +216,7 @@ function toAction(raw: unknown, where: string): JourneySpec['steps'][number]['ac
       return { kind: 'screenshot', caption: requireString(record, 'caption', where), category }
     }
     default:
-      throw new SuiteConfigError(`${where}: "kind" must be goto, click, fill, expectText, expectVisible or screenshot`)
+      throw new SuiteConfigError(`${where}: "kind" must be goto, click, fill, expectText, expectVisible, wait or screenshot`)
   }
 }
 

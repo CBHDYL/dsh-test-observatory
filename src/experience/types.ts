@@ -12,6 +12,7 @@ export type JourneyAction =
   | { readonly kind: 'fill'; readonly selector: string; readonly value: string }
   | { readonly kind: 'expectText'; readonly text: string }
   | { readonly kind: 'expectVisible'; readonly selector: string }
+  | { readonly kind: 'wait'; readonly ms?: number; readonly selector?: string }
   | { readonly kind: 'screenshot'; readonly caption: string; readonly category: 'key' | 'fail' | 'mobile' | 'final' }
 
 /** One step of a declared journey: a label plus the actions it performs. */

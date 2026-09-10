@@ -11,6 +11,12 @@ import type { CapturedShot, CheckFinding, ExperienceRun, JourneyAction, JourneyC
 import { checkAccessibility } from './a11y.ts'
 import { checkVisual } from './visual.ts'
 
+/** Deadline for the best-effort wait before page checks run. */
+export const SETTLE_TIMEOUT_MS = 20000
+
+/** Default settle time for a `wait` action that names no selector. */
+export const DEFAULT_WAIT_MS = 500
+
 /** Default per-step deadline in milliseconds. */
 export const DEFAULT_STEP_TIMEOUT_MS = 15000
 
@@ -67,6 +73,15 @@ async function containCheck(
 }
 
 /**
+ * Wait, best effort, for the page to stop fetching. A page that never goes idle
+ * (a poller, a long-poll socket) proceeds after the deadline rather than failing.
+ * @param page - the page to settle.
+ */
+async function settle(page: Page, timeoutMs: number): Promise<void> {
+  await page.waitForLoadState('networkidle', { timeout: timeoutMs }).catch(() => undefined)
+}
+
+/**
  * Whether the page is the app under test rather than a browser error page.
  * @param url - the page's current URL.
  * @returns true when checks on this page describe the app.
@@ -109,10 +124,23 @@ async function runAction(
   page: Page,
   action: JourneyAction,
   capture: (caption: string, category: CapturedShot['category']) => Promise<void>,
+  settleTimeoutMs: number,
 ): Promise<void> {
   switch (action.kind) {
     case 'goto':
-      await page.goto(action.url, { waitUntil: 'domcontentloaded' })
+      // 'load' rather than 'domcontentloaded': a client-rendered page keeps
+      // painting after the DOM is ready, and a capture or check taken then
+      // describes a half-built screen. The settle that follows lets the page's
+      // own data requests finish before anything reads it.
+      await page.goto(action.url, { waitUntil: 'load' })
+      await settle(page, settleTimeoutMs)
+      return
+    case 'wait':
+      if (action.selector !== undefined) {
+        await page.locator(action.selector).first().waitFor({ state: 'visible' })
+      } else {
+        await page.waitForTimeout(action.ms ?? DEFAULT_WAIT_MS)
+      }
       return
     case 'click':
       await page.click(action.selector)
@@ -145,6 +173,7 @@ async function runJourney(
   spec: JourneySpec,
   capture: (caption: string, category: CapturedShot['category']) => Promise<void>,
   retries: number,
+  settleTimeoutMs: number,
 ): Promise<JourneyOutcome> {
   const steps: StepOutcome[] = []
   let blocked = false
@@ -158,7 +187,7 @@ async function runJourney(
     let settled = false
     for (let attempt = 0; attempt <= retries && !settled; attempt++) {
       try {
-        for (const action of step.actions) await runAction(page, action, capture)
+        for (const action of step.actions) await runAction(page, action, capture, settleTimeoutMs)
         settled = true
       } catch (error: unknown) {
         lastError = error instanceof Error ? error.message : String(error)
@@ -196,6 +225,12 @@ export interface RunOptions {
   readonly accessibilityChecks?: boolean
   /** Extra attempts per failed step (default 0). */
   readonly retries?: number
+  /**
+   * Deadline for the best-effort wait after navigation and before page checks
+   * (default {@link SETTLE_TIMEOUT_MS}). A client-rendered page that fetches its
+   * data after load needs this long enough to reach its real screen.
+   */
+  readonly settleTimeoutMs?: number
 }
 
 /**
@@ -210,6 +245,7 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
   const shots: CapturedShot[] = []
   const checks: JourneyChecks[] = []
   const retries = options.retries ?? 0
+  const settleTimeoutMs = options.settleTimeoutMs ?? SETTLE_TIMEOUT_MS
   const browser = await launch(executable)
   try {
     const journeys: JourneyOutcome[] = []
@@ -229,7 +265,7 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
           dataUri: shot,
         })
       }
-      const journey = await runJourney(page, spec, capture, retries)
+      const journey = await runJourney(page, spec, capture, retries, settleTimeoutMs)
       journeys.push(journey)
       if (options.visualChecks !== false || options.accessibilityChecks !== false) {
         // A check reads the page after the journey; if the page is still moving,
@@ -240,6 +276,10 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
         // A page that never reached the app (the navigation failed and the
         // browser is showing its own error page) is not evidence about the app,
         // so its checks are skipped rather than reported as app defects.
+        // Let in-flight requests finish before reading the page, so the checks
+        // describe the screen the user would actually see. Best effort: a page
+        // that keeps polling reaches the same checks on the next run.
+        await settle(page, settleTimeoutMs)
         const reachedApp = isAppPage(page.url())
         const visual = !reachedApp || options.visualChecks === false
           ? []
