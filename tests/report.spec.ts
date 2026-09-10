@@ -90,6 +90,14 @@ describe('renderReport', () => {
     expect(body).toContain('Visual evidence')
   })
 
+  it('escapes attachment name, kind, and path against injection', () => {
+    const model={...fullModel(),tests:[{name:'<img src=x onerror=alert(1)>',path:'a.ts',status:'failed' as const,suite:'Unit',durationSeconds:1,owner:'Team',attachments:[{name:'"><script>alert(2)</script>',kind:'trace' as const,path:'evil.zip"><script>alert(3)</script>'}]}]}
+    const html=renderReport(model)
+    expect(html).not.toContain('<script>alert(2)</script>')
+    expect(html).not.toContain('<script>alert(3)</script>')
+    expect(html).toContain('function esc(v)')
+  })
+
   it('removes empty evidence and findings cards', () => {
     const model={...fullModel(),evidence:[],findings:[]};const html=renderReport(model);expect(html).not.toContain('id="evidenceGrid"');expect(html).not.toContain('id="findings"')
   })
