@@ -66,6 +66,15 @@ async function containCheck(
   }
 }
 
+/**
+ * Whether the page is the app under test rather than a browser error page.
+ * @param url - the page's current URL.
+ * @returns true when checks on this page describe the app.
+ */
+function isAppPage(url: string): boolean {
+  return url !== 'about:blank' && !url.startsWith('chrome-error://')
+}
+
 /** Browser launcher seam. */
 export type BrowserLauncher = (executablePath: string | undefined) => Promise<Browser>
 
@@ -227,13 +236,25 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
         // the read can lose its execution context. That is a fact about the
         // check, never a reason to fail the whole run, so each check is
         // contained and reports its own failure as a finding.
-        const visual = options.visualChecks === false
+        //
+        // A page that never reached the app (the navigation failed and the
+        // browser is showing its own error page) is not evidence about the app,
+        // so its checks are skipped rather than reported as app defects.
+        const reachedApp = isAppPage(page.url())
+        const visual = !reachedApp || options.visualChecks === false
           ? []
           : await containCheck('visual', () => checkVisual(page))
-        const accessibility = options.accessibilityChecks === false
+        const accessibility = !reachedApp || options.accessibilityChecks === false
           ? []
           : await containCheck('accessibility', () => checkAccessibility(page))
-        checks.push({ persona: spec.persona, visual, accessibility })
+        const skipped: readonly CheckFinding[] = reachedApp
+          ? []
+          : [{
+            rule: 'page-checks-skipped',
+            detail: 'the journey never reached the app (the page is ' + page.url() + '), so page checks would describe the browser error page instead',
+            severity: 'medium',
+          }]
+        checks.push({ persona: spec.persona, visual: [...skipped, ...visual], accessibility })
       }
       await page.close()
     }

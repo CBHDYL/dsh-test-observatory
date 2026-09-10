@@ -70,10 +70,55 @@ describe('scoreRun', () => {
   })
 })
 
+describe('runExperience app-page guard', () => {
+  it('skips page checks when the journey never reached the app', async () => {
+    const page = {
+      goto: async () => { throw new Error('net::ERR_CONNECTION_REFUSED') },
+      url: () => 'about:blank',
+      evaluate: async () => { throw new Error('should not be called') },
+      addScriptTag: async () => { throw new Error('should not be called') },
+      close: async () => {},
+    }
+    const run = await runExperience({
+      journeys: [{
+        persona: '首次访问用户', device: 'Desktop', name: '打开首页',
+        steps: [{ label: '打开', actions: [{ kind: 'goto', url: 'http://127.0.0.1:8000/' }] }],
+      }],
+      launch: async () => ({ newPage: async () => page, close: async () => {} }) as never,
+      executable: () => undefined,
+    })
+    expect(run.journeys[0]?.passed).toBe(false)
+    expect(run.checks[0]?.visual).toHaveLength(1)
+    expect(run.checks[0]?.visual[0]?.rule).toBe('page-checks-skipped')
+    expect(run.checks[0]?.accessibility).toEqual([])
+  })
+
+  it('runs page checks when the app page did load', async () => {
+    const page = {
+      goto: async () => {},
+      url: () => 'http://127.0.0.1:8000/',
+      evaluate: async () => [],
+      addScriptTag: async () => {},
+      close: async () => {},
+    }
+    const run = await runExperience({
+      journeys: [{
+        persona: 'P', device: 'D', name: 'n',
+        steps: [{ label: 'go', actions: [{ kind: 'goto', url: 'http://127.0.0.1:8000/' }] }],
+      }],
+      launch: async () => ({ newPage: async () => page, close: async () => {} }) as never,
+      executable: () => undefined,
+    })
+    expect(run.checks[0]?.visual).toEqual([])
+    expect(run.checks[0]?.accessibility).toEqual([])
+  })
+})
+
 describe('runExperience check containment', () => {
   it('records a failing visual check as a finding instead of throwing', async () => {
     const page = {
       goto: async () => {},
+      url: () => 'http://example.test/app',
       evaluate: async () => { throw new Error('Execution context was destroyed, most likely because of a navigation') },
       addScriptTag: async () => {},
       close: async () => {},
@@ -96,6 +141,7 @@ describe('runExperience check containment', () => {
   it('records a failing accessibility scan as a finding instead of throwing', async () => {
     const page = {
       goto: async () => {},
+      url: () => 'http://example.test/app',
       evaluate: async () => [],
       addScriptTag: async () => { throw new Error('page closed') },
       close: async () => {},
