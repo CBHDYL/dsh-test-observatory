@@ -11,10 +11,11 @@ describe('parseStructuredResult', () => {
   it('parses JUnit and pytest XML cases with failures and skips', async () => {
     const path = await artifact('junit.xml', '<testsuite><testcase name="passes" classname="unit" file="a.py" time="0.2"/><testcase name="fails" classname="unit" time="0.3"><failure><![CDATA[expected 2]]></failure></testcase><testcase name="skip"><skipped/></testcase></testsuite>')
     const rows = await parseStructuredResult({ format: 'pytest', path }, base, root)
+    expect(rows[0]?.path).toBe('a.py')
     expect(rows.map(row => [row.name, row.status])).toEqual([['passes','passed'],['fails','failed'],['skip','skipped']])
     expect(rows[1]?.error).toBe('expected 2')
     const selfClosing=await artifact('selfclosing.xml','<testsuite><testcase name="selfclosing"><failure message="assert 1 == 2"/></testcase></testsuite>')
-    const failed=await parseStructuredResult({format:'junit',path:selfClosing},base,root)
+    const failed=await parseStructuredResult({format:'pytest',path:selfClosing},base,root)
     expect(failed[0]).toMatchObject({status:'failed',error:'assert 1 == 2'})
   })
 

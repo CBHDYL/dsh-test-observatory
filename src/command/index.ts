@@ -109,7 +109,27 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
         causes: historyCounts.failed === 0 ? [] : [{ label: 'Failed structured test', count: historyCounts.failed }],
         slowest: [...projection.tests].sort((left, right) => right.durationSeconds - left.durationSeconds).slice(0, 10).map((test, index) => ({ rank: index + 1, name: test.name, suite: test.suite, durationSeconds: test.durationSeconds })),
         summary: { ...model.summary, ...historyCounts },
-        verdict: { ...model.verdict, score: Math.round(passRate), headline: historyCounts.failed > 0 ? historyCounts.failed + ' tests failed.' : historyCounts.flaky > 0 ? historyCounts.flaky + ' tests are flaky.' : 'Every test passed.', label: hasRisk ? 'Suite needs review' : 'Suite passing', summary: hasRisk ? 'Review failed and flaky tests before release.' : 'The test suite completed without failures.', confidence: passRate + '% stable pass rate', risk: hasRisk ? 'Historical comparison found unstable or failing tests.' : 'No failing or flaky test in this run.' },
+        verdict: (() => {
+          const experienceScore = experienceSection?.experience.total
+          const testScore = Math.round(passRate)
+          const combinedScore = experienceScore === undefined ? testScore : Math.min(testScore, experienceScore)
+          const experienceRisk = experienceScore !== undefined && experienceScore < 100
+          const headline = historyCounts.failed > 0
+            ? historyCounts.failed + ' tests failed.'
+            : historyCounts.flaky > 0
+              ? historyCounts.flaky + ' tests are flaky.'
+              : experienceRisk ? 'Automated tests passed; experience checks scored ' + experienceScore + '/100.' : 'Every test passed.'
+          const needsReview = hasRisk || experienceRisk
+          return {
+            ...model.verdict,
+            score: combinedScore,
+            headline,
+            label: needsReview ? 'Suite needs review' : 'Suite passing',
+            summary: hasRisk ? 'Review failed and flaky tests before release.' : experienceRisk ? 'The test suite passed, but browser observations found release risks.' : 'The test suite completed without failures.',
+            confidence: passRate + '% stable pass rate' + (experienceScore === undefined ? '' : ' · ' + experienceScore + '/100 experience score'),
+            risk: hasRisk ? 'Historical comparison found unstable or failing tests.' : experienceRisk ? 'Experience checks scored ' + experienceScore + '/100; inspect browser findings before release.' : 'No failing or flaky test in this run.',
+          }
+        })(),
         kpis: [
           { label: 'Pass rate', value: passRate + '%', delta: historyCounts.passed + ' of ' + model.summary.total, ...(hasRisk ? { worse: true } : {}) },
           { label: 'Total tests', value: String(model.summary.total), delta: model.summary.total + ' observed' },

@@ -378,6 +378,13 @@ describe('buildReportModel', () => {
     expect(model.verdict.label).toBe('Suite failing')
   })
 
+  it('reflects experience risk in the executive verdict', () => {
+    const experienceSection={experience:{total:93,band:'Excellent',tasksObserved:1,tasksCompleted:1,blockers:0,recoverablePoints:7,dimensions:[],visualFindings:0,accessibilityFindings:3},personas:[],journeys:[],evidence:[],findings:[],checks:[]}
+    const model=buildReportModel([outcome('a',true,100)],{...inputs,experienceSection})
+    expect(model.verdict.score).toBe(93)
+    expect(model.verdict.headline).toContain('experience checks scored 93/100')
+  })
+
   it('formats a run longer than a minute as minutes and seconds', () => {
     const model = buildReportModel([outcome('slow', true, 125_000)], inputs)
     expect(model.kpis.find(kpi => kpi.label === 'Duration')?.value).toBe('2m 5s')

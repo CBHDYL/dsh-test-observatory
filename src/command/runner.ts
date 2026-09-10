@@ -217,7 +217,10 @@ export function buildReportModel(outcomes: readonly CaseOutcome[], inputs: Repor
     tests,
   }
   if (inputs.experienceSection !== undefined) {
-    return { ...model, ...inputs.experienceSection }
+    const experienceScore = inputs.experienceSection.experience.total
+    const combinedScore = Math.min(model.verdict.score, experienceScore)
+    const experienceRisk = experienceScore < 100 ? `Experience checks scored ${experienceScore}/100; inspect browser findings before release.` : model.verdict.risk
+    return { ...model, ...inputs.experienceSection, verdict: { ...model.verdict, score: combinedScore, headline: combinedScore === 100 ? model.verdict.headline : `Automated tests passed; experience checks scored ${experienceScore}/100.`, label: combinedScore === 100 ? model.verdict.label : 'Review experience findings', summary: combinedScore === 100 ? model.verdict.summary : 'The test suite passed, but browser observations found release risks.', confidence: `${passRate}% test pass rate · ${experienceScore}/100 experience score`, risk: experienceRisk } }
   }
   return model
 }
