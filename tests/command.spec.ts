@@ -378,6 +378,14 @@ describe('buildReportModel', () => {
     expect(model.verdict.label).toBe('Suite failing')
   })
 
+  it('does not claim tests passed when a test failed, even with a perfect experience score', () => {
+    const experienceSection={experience:{total:100,band:'Excellent',tasksObserved:1,tasksCompleted:1,blockers:0,recoverablePoints:0,dimensions:[],visualFindings:0,accessibilityFindings:0},personas:[],journeys:[],evidence:[],findings:[],checks:[]}
+    const model=buildReportModel([outcome('a',true,100),outcome('b',false,100)],{...inputs,experienceSection})
+    expect(model.verdict.headline).not.toContain('Automated tests passed')
+    expect(model.verdict.headline).toContain('1 of 2 tests failed')
+    expect(model.verdict.label).toBe('Suite failing')
+  })
+
   it('reflects experience risk in the executive verdict', () => {
     const experienceSection={experience:{total:93,band:'Excellent',tasksObserved:1,tasksCompleted:1,blockers:0,recoverablePoints:7,dimensions:[],visualFindings:0,accessibilityFindings:3},personas:[],journeys:[],evidence:[],findings:[],checks:[]}
     const model=buildReportModel([outcome('a',true,100)],{...inputs,experienceSection})

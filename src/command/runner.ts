@@ -116,7 +116,12 @@ function toReportTest(outcome: CaseOutcome): ReportTest {
  * @param seconds - the duration in seconds.
  * @returns the formatted duration.
  */
-function formatDuration(seconds: number): string {
+/**
+ * Format a duration for KPI display: seconds under a minute, otherwise minutes and seconds.
+ * @param seconds - the duration in seconds.
+ * @returns a human-readable duration string.
+ */
+export function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds.toFixed(1)}s`
   const minutes = Math.floor(seconds / 60)
   return `${minutes}m ${Math.round(seconds - minutes * 60)}s`
@@ -219,8 +224,19 @@ export function buildReportModel(outcomes: readonly CaseOutcome[], inputs: Repor
   if (inputs.experienceSection !== undefined) {
     const experienceScore = inputs.experienceSection.experience.total
     const combinedScore = Math.min(model.verdict.score, experienceScore)
-    const experienceRisk = experienceScore < 100 ? `Experience checks scored ${experienceScore}/100; inspect browser findings before release.` : model.verdict.risk
-    return { ...model, ...inputs.experienceSection, verdict: { ...model.verdict, score: combinedScore, headline: combinedScore === 100 ? model.verdict.headline : `Automated tests passed; experience checks scored ${experienceScore}/100.`, label: combinedScore === 100 ? model.verdict.label : 'Review experience findings', summary: combinedScore === 100 ? model.verdict.summary : 'The test suite passed, but browser observations found release risks.', confidence: `${passRate}% test pass rate · ${experienceScore}/100 experience score`, risk: experienceRisk } }
+    const testsFailed = failed > 0
+    const experienceRisk = experienceScore < 100
+    const headline = testsFailed
+      ? model.verdict.headline
+      : experienceRisk ? `Automated tests passed; experience checks scored ${experienceScore}/100.` : model.verdict.headline
+    const label = testsFailed ? model.verdict.label : experienceRisk ? 'Suite needs review' : model.verdict.label
+    const summary = testsFailed
+      ? model.verdict.summary
+      : experienceRisk ? 'The test suite passed, but browser observations found release risks.' : model.verdict.summary
+    const risk = testsFailed
+      ? model.verdict.risk
+      : experienceRisk ? `Experience checks scored ${experienceScore}/100; inspect browser findings before release.` : model.verdict.risk
+    return { ...model, ...inputs.experienceSection, verdict: { ...model.verdict, score: combinedScore, headline, label, summary, confidence: `${passRate}% test pass rate · ${experienceScore}/100 experience score`, risk } }
   }
   return model
 }

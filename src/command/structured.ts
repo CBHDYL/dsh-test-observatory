@@ -93,6 +93,25 @@ function parsePerformance(value: unknown): ParsedCase[] {
   })
 }
 
+/**
+ * Infer a Pytest source file from a JUnit `classname` attribute. Pytest reports
+ * a dotted module path for function-style tests (`tests.test_foo`) and appends
+ * a trailing PascalCase segment for unittest-style class tests
+ * (`tests.test_foo.TestBar`); the class segment is not part of the file path.
+ * A classname with no dot is a declared suite label rather than a module path,
+ * and is intentionally not converted to a file.
+ * @param classname - the JUnit `classname` attribute value.
+ * @returns the inferred `.py` path, or undefined when inference would be unreliable.
+ */
+function inferPytestPath(classname: string): string | undefined {
+  const segments = classname.split('.')
+  if (segments.length < 2) return undefined
+  const last = segments.at(-1)!
+  const modulePathSegments = /^[A-Z]/.test(last) ? segments.slice(0, -1) : segments
+  if (modulePathSegments.length === 0) return undefined
+  return modulePathSegments.join('/') + '.py'
+}
+
 /** Read and parse one declared structured result artifact. */
 export async function parseStructuredResult(spec: StructuredResultSpec, testCase: SuiteCase, cwd: string): Promise<ReportTest[]> {
   const source = await readFile(resolve(cwd, spec.path), 'utf8')
@@ -100,5 +119,5 @@ export async function parseStructuredResult(spec: StructuredResultSpec, testCase
     ? parseJUnit(source)
     : (() => { const value: unknown=JSON.parse(source); if(spec.format==='api')return parseApi(value); if(spec.format==='performance')return parsePerformance(value); const out: ParsedCase[]=[]; if(spec.format==='playwright')parsePlaywright(value,out);else visit(value,spec.format,out);return out })()
   if (parsed.length === 0) throw new Error(`structured result ${spec.path} contains no recognizable test results`)
-  return parsed.map(item => ({ name:item.name,path:item.path ?? (spec.format === 'pytest' && item.suite ? item.suite.replaceAll('.', '/') + '.py' : spec.path),status:item.status,suite:item.suite||testCase.suite||spec.format,durationSeconds:item.durationSeconds??0,owner:testCase.owner??'Unassigned',framework:spec.format,...(item.error?{error:item.error}:{}),...(item.attempts?{attempts:item.attempts}:{}),...(item.attachments?.length?{attachments:item.attachments}:{}),...(item.api?{api:item.api}:{}),...(item.performance?{performance:item.performance}:{}) }))
+  return parsed.map(item => ({ name:item.name,path:item.path ?? (spec.format === 'pytest' && item.suite ? inferPytestPath(item.suite) ?? spec.path : spec.path),status:item.status,suite:item.suite||testCase.suite||spec.format,durationSeconds:item.durationSeconds??0,owner:testCase.owner??'Unassigned',framework:spec.format,...(item.error?{error:item.error}:{}),...(item.attempts?{attempts:item.attempts}:{}),...(item.attachments?.length?{attachments:item.attachments}:{}),...(item.api?{api:item.api}:{}),...(item.performance?{performance:item.performance}:{}) }))
 }

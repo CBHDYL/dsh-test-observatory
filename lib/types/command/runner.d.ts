@@ -41,6 +41,17 @@ export declare function truncate(value: string): string;
  * @returns the settled outcome.
  */
 export declare function runCase(testCase: SuiteCase, signal: AbortSignal, cwd?: string): Promise<CaseOutcome>;
+/**
+ * Format a duration in seconds as a compact human string.
+ * @param seconds - the duration in seconds.
+ * @returns the formatted duration.
+ */
+/**
+ * Format a duration for KPI display: seconds under a minute, otherwise minutes and seconds.
+ * @param seconds - the duration in seconds.
+ * @returns a human-readable duration string.
+ */
+export declare function formatDuration(seconds: number): string;
 /** Inputs of {@link buildReportModel} that are not derived from the outcomes. */
 /** Optional experience section spread into the report model. */
 export interface ExperienceInputs {

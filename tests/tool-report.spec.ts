@@ -2,5 +2,6 @@ import { describe,expect,it } from 'vitest'
 import { renderReport } from '../src/tool/report.ts'
 describe('model tool Observatory report',()=>{
  it('uses the shared premium report and real command evidence',()=>{const html=renderReport('Tool suite',{total:1,passed:0,failed:1,durationMs:250},[{name:'lint',command:'pnpm lint',exitCode:1,expectedExitCode:0,passed:false,durationMs:250,stdout:'out',stderr:'bad'}]);expect(html).toContain('Test Observatory');expect(html).toContain('window.__OBSERVATORY__=');expect(html).toContain('pnpm lint');expect(html).toContain('bad');expect(html).toContain('.drawer{position:fixed')})
+  it('preserves exit code evidence for a passing case and formats long durations as minutes',()=>{const html=renderReport('Tool suite',{total:1,passed:1,failed:0,durationMs:125000},[{name:'ok',command:'true',exitCode:0,expectedExitCode:0,passed:true,durationMs:125000,stdout:'done',stderr:''}]);expect(html).toContain('Exit code: 0 (expected 0)');expect(html).toContain('2m 5s')})
  it('does not fabricate history for an empty run',()=>{const html=renderReport('Empty',{total:0,passed:0,failed:0,durationMs:0},[]);expect(html).toContain('"trend":[]');expect(html).not.toContain('Visual evidence')})
 })
