@@ -23,7 +23,7 @@ function fullModel(): ReportModel {
     personas: [{ id: 'new', name: 'First-time', device: 'Desktop', tasks: 3, completionPercent: 67, headline: 'Discovery' }],
     journeys: [{ personaId: 'new', name: 'Checkout', steps: [{ label: 'Open', state: 'PASS', seconds: 1 }] }],
     evidence: [{ title: 'Shot', personaId: 'new', kind: 'key', meta: 'Desktop' }],
-    findings: [{ id: 'f1', severity: 'HIGH', dimension: 'Feedback', deductedPoints: 2, title: 'No progress', observation: 'Observed', scope: 'Checkout', recoverablePoints: 2 }],
+    findings: [{ id: 'f1', severity: 'HIGH', dimension: 'Feedback', deductedPoints: 2, title: 'No progress', observation: 'Observed', scope: 'Checkout', recoverablePoints: 2, evidenceIds: ['evidence-1'] }],
     tests: [{ name: 'case', path: 'a.ts', status: 'failed', suite: 'Suite', durationSeconds: 1, owner: 'Team' }],
   }
 }

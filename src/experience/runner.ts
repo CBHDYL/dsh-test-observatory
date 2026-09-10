@@ -123,9 +123,9 @@ export function resolveExecutable(): string | undefined {
 async function runAction(
   page: Page,
   action: JourneyAction,
-  capture: (caption: string, category: CapturedShot['category']) => Promise<void>,
+  capture: (caption: string, category: CapturedShot['category']) => Promise<string | undefined>,
   settleTimeoutMs: number,
-): Promise<void> {
+): Promise<string | undefined> {
   switch (action.kind) {
     case 'goto':
       // 'load' rather than 'domcontentloaded': a client-rendered page keeps
@@ -155,8 +155,7 @@ async function runAction(
       await page.locator(action.selector).first().waitFor({ state: 'visible' })
       return
     case 'screenshot':
-      await capture(action.caption, action.category)
-      return
+      return capture(action.caption, action.category)
   }
 }
 
@@ -171,32 +170,44 @@ async function runAction(
 async function runJourney(
   page: Page,
   spec: JourneySpec,
-  capture: (caption: string, category: CapturedShot['category']) => Promise<void>,
+  capture: (caption: string, category: CapturedShot['category']) => Promise<string | undefined>,
   retries: number,
   settleTimeoutMs: number,
+  setActiveStep: (label: string) => void,
 ): Promise<JourneyOutcome> {
   const steps: StepOutcome[] = []
   let blocked = false
   for (const step of spec.steps) {
+    setActiveStep(step.label)
     if (blocked) {
-      steps.push({ label: step.label, state: 'BLOCKED', durationMs: 0 })
+      steps.push({ label: step.label, state: 'BLOCKED', durationMs: 0, evidenceIds: [] })
       continue
     }
     const started = Date.now()
+    const evidenceIds: string[] = []
     let lastError: string | undefined
     let settled = false
     for (let attempt = 0; attempt <= retries && !settled; attempt++) {
       try {
-        for (const action of step.actions) await runAction(page, action, capture, settleTimeoutMs)
+        for (const action of step.actions) {
+          const evidenceId = await runAction(page, action, capture, settleTimeoutMs)
+          if (evidenceId !== undefined) evidenceIds.push(evidenceId)
+        }
         settled = true
       } catch (error: unknown) {
         lastError = error instanceof Error ? error.message : String(error)
       }
     }
     if (settled) {
-      steps.push({ label: step.label, state: 'PASS', durationMs: Date.now() - started })
+      steps.push({ label: step.label, state: 'PASS', durationMs: Date.now() - started, evidenceIds })
     } else {
-      steps.push({ label: step.label, state: 'FAIL', durationMs: Date.now() - started, ...(lastError === undefined ? {} : { error: lastError }) })
+      try {
+        const failureEvidenceId = await capture(step.label + ' — failure', 'fail')
+        if (failureEvidenceId !== undefined) evidenceIds.push(failureEvidenceId)
+      } catch {
+        // The failed step remains the primary evidence when the page cannot be captured.
+      }
+      steps.push({ label: step.label, state: 'FAIL', durationMs: Date.now() - started, evidenceIds, ...(lastError === undefined ? {} : { error: lastError }) })
       blocked = true
     }
   }
@@ -254,18 +265,15 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
       const viewport = spec.viewport ?? DEFAULT_VIEWPORT
       const page = await browser.newPage({ viewport })
       const meta = [spec.device, String(viewport.width) + 'x' + String(viewport.height)].join(' · ')
-      const capture = async (caption: string, category: CapturedShot['category']): Promise<void> => {
+      let activeStepLabel = ''
+      const capture = async (caption: string, category: CapturedShot['category']): Promise<string | undefined> => {
         const shot = await captureBounded(page)
-        if (shot === undefined) return
-        shots.push({
-          caption,
-          category,
-          persona: spec.persona,
-          meta,
-          dataUri: shot,
-        })
+        if (shot === undefined) return undefined
+        const id = 'evidence-' + String(shots.length + 1)
+        shots.push({ id, caption, category, persona: spec.persona, journey: spec.name, stepLabel: activeStepLabel, meta, dataUri: shot })
+        return id
       }
-      const journey = await runJourney(page, spec, capture, retries, settleTimeoutMs)
+      const journey = await runJourney(page, spec, async (caption, category) => capture(caption, category), retries, settleTimeoutMs, label => { activeStepLabel = label })
       journeys.push(journey)
       if (options.visualChecks !== false || options.accessibilityChecks !== false) {
         // A check reads the page after the journey; if the page is still moving,

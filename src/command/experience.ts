@@ -53,6 +53,7 @@ function toFinding(journey: JourneyOutcome, label: string, error: string, index:
     observation: error,
     scope: journey.name + ' · ' + journey.persona,
     recoverablePoints: 2,
+    evidenceIds: journey.steps.find(step => step.label === label)?.evidenceIds ?? [],
   }
 }
 
@@ -80,11 +81,15 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
       label: step.label,
       state: step.state,
       seconds: step.state === 'BLOCKED' ? null : Math.round(step.durationMs / 10) / 100,
+      ...(step.evidenceIds === undefined ? {} : { evidenceIds: step.evidenceIds }),
     })),
   }))
   const evidence: EvidenceShot[] = run.shots.map(shot => ({
+    id: shot.id,
     title: shot.caption,
     personaId: personaId(shot.persona),
+    journey: shot.journey,
+    stepLabel: shot.stepLabel,
     kind: shot.category,
     meta: shot.meta,
     imageDataUri: shot.dataUri,

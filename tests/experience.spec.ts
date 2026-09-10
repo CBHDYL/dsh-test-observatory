@@ -10,7 +10,7 @@ function journey(persona: string, states: readonly ('PASS' | 'FAIL' | 'BLOCKED')
     device: 'Desktop',
     name: persona + ' task',
     passed: states.every(state => state === 'PASS'),
-    steps: states.map((state, index) => ({ label: 'step ' + String(index + 1), state, durationMs })),
+    steps: states.map((state, index) => ({ label: 'step ' + String(index + 1), state, durationMs, evidenceIds: [] })),
   }
 }
 
@@ -76,7 +76,6 @@ describe('runExperience app-page guard', () => {
       goto: async () => { throw new Error('net::ERR_CONNECTION_REFUSED') },
       waitForLoadState: async () => {},
       url: () => 'about:blank',
-      waitForLoadState: async () => {},
       evaluate: async () => { throw new Error('should not be called') },
       addScriptTag: async () => { throw new Error('should not be called') },
       close: async () => {},
@@ -100,7 +99,6 @@ describe('runExperience app-page guard', () => {
       goto: async () => {},
       waitForLoadState: async () => {},
       url: () => 'http://127.0.0.1:8000/',
-      waitForLoadState: async () => {},
       evaluate: async () => [],
       addScriptTag: async () => {},
       close: async () => {},
@@ -124,7 +122,6 @@ describe('runExperience check containment', () => {
       goto: async () => {},
       waitForLoadState: async () => {},
       url: () => 'http://example.test/app',
-      waitForLoadState: async () => {},
       evaluate: async () => { throw new Error('Execution context was destroyed, most likely because of a navigation') },
       addScriptTag: async () => {},
       close: async () => {},
@@ -149,7 +146,6 @@ describe('runExperience check containment', () => {
       goto: async () => {},
       waitForLoadState: async () => {},
       url: () => 'http://example.test/app',
-      waitForLoadState: async () => {},
       evaluate: async () => [],
       addScriptTag: async () => { throw new Error('page closed') },
       close: async () => {},
@@ -175,7 +171,6 @@ describe('runExperience', () => {
       goto: async () => {},
       waitForLoadState: async () => {},
       click: async () => { throw new Error('no such element') },
-      waitForLoadState: async () => {},
       fill: async () => {},
       getByText: () => ({ first: () => ({ waitFor: async () => {} }) }),
       locator: () => ({ first: () => ({ waitFor: async () => {} }) }),
@@ -206,6 +201,25 @@ describe('runExperience', () => {
     expect(result.journeys[0]?.steps.map(step => step.state)).toEqual(['PASS', 'FAIL', 'BLOCKED'])
     expect(result.journeys[0]?.passed).toBe(false)
     expect(result.journeys[0]?.steps[1]?.error).toContain('no such element')
+  })
+
+  it('captures a failed step automatically and links the evidence', async () => {
+    const fakePage = {
+      click: async () => { throw new Error('missing button') },
+      screenshot: async () => Buffer.from('failure'),
+      url: () => 'http://example.test/app',
+      close: async () => {},
+    }
+    const result = await runExperience({
+      journeys: [{ persona: 'Error-prone', device: 'Desktop', name: 'Recover', steps: [{ label: 'submit', actions: [{ kind: 'click', selector: '#missing' }] }] }],
+      launch: async () => ({ newPage: async () => fakePage, close: async () => {} }) as never,
+      executable: () => undefined,
+      visualChecks: false,
+      accessibilityChecks: false,
+    })
+    expect(result.shots).toHaveLength(1)
+    expect(result.shots[0]).toMatchObject({ id: 'evidence-1', category: 'fail', journey: 'Recover', stepLabel: 'submit' })
+    expect(result.journeys[0]?.steps[0]?.evidenceIds).toEqual(['evidence-1'])
   })
 
   it('records a screenshot as a bounded data URI', async () => {

@@ -41,12 +41,18 @@ export interface JourneySpec {
 
 /** One captured screenshot, carried as a data URI so the report stays a single file. */
 export interface CapturedShot {
+  /** Stable capture id referenced by steps and findings. */
+  readonly id: string
   /** Caption shown under the thumbnail. */
   readonly caption: string
   /** Gallery category. */
   readonly category: 'key' | 'fail' | 'mobile' | 'final'
   /** Persona that produced the capture. */
   readonly persona: string
+  /** Journey that produced the capture. */
+  readonly journey: string
+  /** Step active when the capture was taken. */
+  readonly stepLabel: string
   /** Device, step and viewport description. */
   readonly meta: string
   /** A data:image/png;base64 payload. */
@@ -63,6 +69,8 @@ export interface StepOutcome {
   readonly durationMs: number
   /** Failure explanation, absent when the step passed. */
   readonly error?: string
+  /** Captures recorded during this step. */
+  readonly evidenceIds?: readonly string[]
 }
 
 /** One settled journey outcome. */

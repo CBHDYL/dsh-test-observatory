@@ -111,6 +111,8 @@ export interface JourneyStep {
   readonly state: 'PASS' | 'FAIL' | 'BLOCKED'
   /** Observed duration in seconds, or null when the step never ran. */
   readonly seconds: number | null
+  /** Captures recorded while this step ran. */
+  readonly evidenceIds?: readonly string[]
 }
 
 /** One simulated task performed by a persona. */
@@ -125,10 +127,16 @@ export interface Journey {
 
 /** One captured screenshot referenced by the report. */
 export interface EvidenceShot {
+  /** Stable capture id referenced by steps and findings. */
+  readonly id?: string
   /** Caption shown under the thumbnail. */
   readonly title: string
   /** Persona id that produced the capture. */
   readonly personaId: string
+  /** Journey that produced the capture. */
+  readonly journey?: string
+  /** Step active when the capture was taken. */
+  readonly stepLabel?: string
   /** Capture category used by the gallery filter. */
   readonly kind: 'key' | 'fail' | 'mobile' | 'final'
   /** Device, step and viewport description. */
@@ -172,6 +180,8 @@ export interface UxFinding {
   readonly scope: string
   /** Points recoverable by fixing the finding. */
   readonly recoverablePoints: number
+  /** Captures that support this finding. */
+  readonly evidenceIds?: readonly string[]
 }
 
 /** Rule-based experience score with its transparent dimension breakdown. */

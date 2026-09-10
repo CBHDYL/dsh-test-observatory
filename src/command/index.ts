@@ -65,7 +65,7 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
 
   const outcomes = []
   for (const testCase of config.cases) {
-    outcomes.push(await runCase(testCase, invocation.signal))
+    outcomes.push(await runCase(testCase, invocation.signal, workspace))
   }
 
   const outputPath = resolve(workspace, config.report?.outputPath ?? 'test-observatory-report.html')
