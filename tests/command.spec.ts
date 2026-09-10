@@ -303,6 +303,14 @@ describe('runCase', () => {
     expect(result.passed).toBe(true)
   })
 
+  it('runs the command in the supplied working directory', async () => {
+    scratch = await mkdtemp(join(tmpdir(), 'dsh-cwd-'))
+    await writeFile(join(scratch, 'marker.txt'), 'found')
+    const result = await runCase({ name: 'pwd', command: 'cat marker.txt' }, new AbortController().signal, scratch)
+    expect(result.passed).toBe(true)
+    expect(result.stdout).toContain('found')
+  })
+
   it('captures stderr separately from stdout', async () => {
     const result = await runCase({ name: 'err', command: 'echo out; echo err >&2' }, new AbortController().signal)
     expect(result.stdout).toContain('out')

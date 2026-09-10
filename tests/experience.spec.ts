@@ -70,6 +70,50 @@ describe('scoreRun', () => {
   })
 })
 
+describe('runExperience check containment', () => {
+  it('records a failing visual check as a finding instead of throwing', async () => {
+    const page = {
+      goto: async () => {},
+      evaluate: async () => { throw new Error('Execution context was destroyed, most likely because of a navigation') },
+      addScriptTag: async () => {},
+      close: async () => {},
+    }
+    const run = await runExperience({
+      journeys: [{
+        persona: 'Navigator', device: 'Desktop', name: 'navigate away',
+        steps: [{ label: 'go', actions: [{ kind: 'goto', url: 'http://example.test' }] }],
+      }],
+      launch: async () => ({ newPage: async () => page, close: async () => {} }) as never,
+      executable: () => undefined,
+      accessibilityChecks: false,
+    })
+    expect(run.journeys[0]?.passed).toBe(true)
+    expect(run.checks[0]?.visual).toHaveLength(1)
+    expect(run.checks[0]?.visual[0]?.rule).toBe('visual-check-failed')
+    expect(run.checks[0]?.visual[0]?.detail).toContain('Execution context was destroyed')
+  })
+
+  it('records a failing accessibility scan as a finding instead of throwing', async () => {
+    const page = {
+      goto: async () => {},
+      evaluate: async () => [],
+      addScriptTag: async () => { throw new Error('page closed') },
+      close: async () => {},
+    }
+    const run = await runExperience({
+      journeys: [{
+        persona: 'P', device: 'D', name: 'n',
+        steps: [{ label: 'go', actions: [{ kind: 'goto', url: 'http://example.test' }] }],
+      }],
+      launch: async () => ({ newPage: async () => page, close: async () => {} }) as never,
+      executable: () => undefined,
+      visualChecks: false,
+    })
+    expect(run.journeys[0]?.passed).toBe(true)
+    expect(run.checks[0]?.accessibility[0]?.rule).toBe('accessibility-check-failed')
+  })
+})
+
 describe('runExperience', () => {
   it('settles every step, blocks the rest after a failure, and closes the browser', async () => {
     const closed: string[] = []

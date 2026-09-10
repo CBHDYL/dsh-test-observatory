@@ -45,6 +45,27 @@ async function captureBounded(page: Page): Promise<string | undefined> {
   return undefined
 }
 
+/**
+ * Run one page check, turning any failure into a single finding. A check that
+ * cannot read the page (a navigation destroyed its context, the page closed, the
+ * scanner is missing) is reported as an observation, not thrown: the journey
+ * result is the primary evidence and must survive a secondary check failing.
+ * @param rule - the rule id reported for a failed check.
+ * @param check - the check to run.
+ * @returns the findings, or one finding describing why the check could not run.
+ */
+async function containCheck(
+  rule: string,
+  check: () => Promise<readonly CheckFinding[]>,
+): Promise<readonly CheckFinding[]> {
+  try {
+    return await check()
+  } catch (error: unknown) {
+    const detail = error instanceof Error ? error.message : String(error)
+    return [{ rule: rule + '-check-failed', detail, severity: 'medium' }]
+  }
+}
+
 /** Browser launcher seam. */
 export type BrowserLauncher = (executablePath: string | undefined) => Promise<Browser>
 
@@ -202,9 +223,17 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
       const journey = await runJourney(page, spec, capture, retries)
       journeys.push(journey)
       if (options.visualChecks !== false || options.accessibilityChecks !== false) {
-        const visual = options.visualChecks === false ? [] : await checkVisual(page)
-        const accessibility = options.accessibilityChecks === false ? [] : await checkAccessibility(page)
-        checks.push({ persona: spec.persona, visual: visual as readonly CheckFinding[], accessibility: accessibility as readonly CheckFinding[] })
+        // A check reads the page after the journey; if the page is still moving,
+        // the read can lose its execution context. That is a fact about the
+        // check, never a reason to fail the whole run, so each check is
+        // contained and reports its own failure as a finding.
+        const visual = options.visualChecks === false
+          ? []
+          : await containCheck('visual', () => checkVisual(page))
+        const accessibility = options.accessibilityChecks === false
+          ? []
+          : await containCheck('accessibility', () => checkAccessibility(page))
+        checks.push({ persona: spec.persona, visual, accessibility })
       }
       await page.close()
     }

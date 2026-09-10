@@ -44,9 +44,12 @@ export function truncate(value: string): string {
  * caller cancellation rejects.
  * @param testCase - the case to run.
  * @param signal - the invocation's cancellation signal.
+ * @param cwd - directory the command runs in; the session's working directory,
+ *   so a declared relative command such as `pnpm test` means the project the
+ *   suite was written for rather than wherever the host process happens to be.
  * @returns the settled outcome.
  */
-export function runCase(testCase: SuiteCase, signal: AbortSignal): Promise<CaseOutcome> {
+export function runCase(testCase: SuiteCase, signal: AbortSignal, cwd?: string): Promise<CaseOutcome> {
   const expected = testCase.expectedExitCode ?? 0
   const started = Date.now()
   return new Promise<CaseOutcome>((resolve, reject) => {
@@ -57,6 +60,7 @@ export function runCase(testCase: SuiteCase, signal: AbortSignal): Promise<CaseO
         timeout: testCase.timeoutMs,
         maxBuffer: 8 * 1024 * 1024,
         signal,
+        ...(cwd === undefined ? {} : { cwd }),
       },
       (error, stdout, stderr) => {
         const durationMs = Date.now() - started

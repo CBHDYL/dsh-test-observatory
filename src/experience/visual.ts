@@ -91,17 +91,14 @@ export function collectViolations(root: Document): VisualViolation[] {
  * @returns the violations found, in rule order.
  */
 export async function checkVisual(page: Page): Promise<readonly VisualViolation[]> {
-  // The inspection runs in the page; the narrow evaluator type keeps the
-  // serialized function's signature explicit instead of inferring through
-  // Playwright's generic overloads. The document is resolved inside the page,
-  // so this module never touches a Node-side DOM global.
-  // Playwright serializes the function, so the inspected document must be an
-  // argument, not a closed-over global; the handle resolves to the page's own
-  // document.
+  // The inspection runs in the page as a serialized function call. Passing the
+  // function source as an expression avoids holding a document handle across a
+  // possible navigation, which would fail with a destroyed execution context.
+  // The narrow evaluator type keeps the signature explicit instead of inferring
+  // through Playwright's generic overloads.
   const evaluator = page as unknown as {
-    evaluateHandle: (expression: string) => Promise<unknown>
-    evaluate: (fn: (root: Document) => VisualViolation[], root: unknown) => Promise<VisualViolation[]>
+    evaluate: (expression: string) => Promise<VisualViolation[]>
   }
-  const root = await evaluator.evaluateHandle('document')
-  return evaluator.evaluate(collectViolations, root)
+  const expression = '(' + collectViolations.toString() + ')(document)'
+  return evaluator.evaluate(expression)
 }

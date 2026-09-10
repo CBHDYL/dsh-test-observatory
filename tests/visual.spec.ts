@@ -8,10 +8,10 @@ function mount(html: string): void {
 }
 
 describe('checkVisual', () => {
-  it('runs the inspection inside the page and returns its result', async () => {
+  it('runs the serialized inspection inside the page and returns its result', async () => {
+    // The real page evaluates the expression string; jsdom can run it too.
     const page = {
-      evaluateHandle: async () => document,
-      evaluate: async (fn: (root: Document) => unknown, root: Document) => fn(root),
+      evaluate: async (expression: string) => (0, eval)(expression) as unknown,
     }
     mount('<input placeholder="Email">')
     const violations = await checkVisual(page as never)

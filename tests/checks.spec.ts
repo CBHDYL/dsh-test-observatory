@@ -5,11 +5,10 @@ import { checkAccessibility } from '../src/experience/a11y.ts'
 import { scoreRun } from '../src/experience/scoring.ts'
 import type { ExperienceRun, JourneyOutcome } from '../src/experience/types.ts'
 
-/** A page double that runs the injected inspection against the real jsdom DOM. */
+/** A page double that runs the serialized inspection against the real jsdom DOM. */
 function inspectingPage() {
   return {
-    evaluateHandle: async () => document,
-    evaluate: async (fn: unknown, root: unknown) => (fn as (value: unknown) => unknown)(root),
+    evaluate: async (expression: string) => (0, eval)(expression) as unknown,
   }
 }
 
