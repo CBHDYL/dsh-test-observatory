@@ -2,5 +2,5 @@ url: https://github.com/CBHDYL/dsh-test-observatory
 name: CBHDYL/dsh-test-observatory
 category: tools
 description:
-  en: "Test runner and quality report for DSH: /test runs declared shell-command cases and browser journeys per persona, then writes one self-contained HTML report with pass/fail, screenshots, axe-core accessibility violations and a rule-based experience score."
-  zh: "DSH 的测试执行与质量报告插件：/test 运行声明的 shell 命令用例与按角色划分的浏览器旅程，并生成一份自包含 HTML 报告，包含通过/失败、截图、axe-core 无障碍违规与规则化体验评分。"
+  en: "Test runner and quality report for DSH: /test runs declared shell-command cases (optionally parsing JUnit/Pytest/Vitest/Jest/Playwright/API/performance result artifacts into per-test rows) and browser journeys per persona, persists bounded run history for real trend/regression/recovery/flaky detection, and writes one self-contained HTML report with pass/fail, screenshots, axe-core accessibility violations and a rule-based experience score. The run_tests tool shares the same report renderer."
+  zh: "DSH 的测试执行与质量报告插件：/test 运行声明的 shell 命令用例（可选解析 JUnit/Pytest/Vitest/Jest/Playwright/API/性能测试的结果文件，展开为逐条测试行），并驱动按角色划分的浏览器旅程；持久化有界运行历史以判断真实趋势/回归/恢复/Flaky；生成一份自包含 HTML 报告，包含通过/失败、截图、axe-core 无障碍违规与规则化体验评分。run_tests 工具与 /test 共用同一渲染器。"

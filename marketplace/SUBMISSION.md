@@ -21,8 +21,8 @@ data/plugins/CBHDYL__dsh-test-observatory.yml
 | 2 | 仓库根有 `cordis.patch.yml` | ✅ 有 |
 | 3 | 能用 `dsh plugin add` 安装 | ✅ 已用 tarball 验证 |
 | 4 | 仓库有真实可用代码 | ✅ 82 项测试通过 |
-| 5 | 仓库**创建满 1 天**（CI 自动查） | ⬜ 建仓库后需等待 |
-| 6 | 仓库加 `dsh-plugin` topic | ⬜ 待办 |
+| 5 | 仓库**创建满 1 天**（CI 自动查） | ⬜ 仓库创建于 2026-09-09T23:18 UTC，当前（2026-09-10T20:19 UTC）未满 24h，需再等待 |
+| 6 | 仓库加 `dsh-plugin` topic | ⬜ 待办（需 GitHub 网页或 API 令牌操作，当前会话无 GitHub 写权限令牌） |
 | 7 | 描述属实、无营销词 | ✅ 描述只陈述功能，可逐项核对 |
 
 ## 三、您需要做的步骤
@@ -92,7 +92,7 @@ Verified locally with `dsh plugin --profile web add <tarball>` followed by `--du
 Requirements: browser journeys need a Chromium; `DSH_BROWSER_EXECUTABLE` points at one and
 the journey pass fails loudly when none is found.
 
-Tests: 82 passing (unit, jsdom component, and real-browser specs).
+Tests: 105 passing, 2 skipped (unit, jsdom component, real-browser specs; structured-result parsers for JUnit/Pytest/Vitest/Jest/Playwright/API/performance; bounded run history with trend/regression/recovery/flaky detection).
 ```
 
 ## 六、描述里的每一项都能被核对
@@ -118,4 +118,4 @@ Tests: 82 passing (unit, jsdom component, and real-browser specs).
 - `dsh-a11y-scan`（tools）：只做 axe-core 无障碍扫描，不跑测试、不出综合报告。
 - `qa-skills`（skill）：提供 QA 流程的 agent 技能，不含测试执行器。
 
-本插件是「用例执行 + 浏览器旅程 + 截图 + 规则评分 + 单文件报告」的组合，与两者不重叠。
+本插件是「用例执行 + 结构化框架结果解析 + 有界运行历史 + 浏览器旅程 + 截图 + 规则评分 + 单文件报告」的组合，与两者不重叠。
