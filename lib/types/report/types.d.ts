@@ -221,6 +221,12 @@ export interface CheckFinding {
      * when the producer reported no target, which is stated rather than guessed.
      */
     readonly evidence?: readonly FindingEvidence[];
+    /** The requirement the rule checks, stated as what must hold. */
+    readonly requirement?: string;
+    /** The change that satisfies the rule. */
+    readonly fix?: string;
+    /** Authoritative documentation for the rule. */
+    readonly helpUrl?: string;
     /**
      * What this finding means for a user, written by the configured model from
      * the recorded evidence. Absent when the run had no model route.

@@ -26,6 +26,10 @@ export interface VisualViolation {
   readonly severity: 'high' | 'medium'
   /** Every element the finding describes, with its measured rectangle. */
   readonly evidence: readonly ElementEvidence[]
+  /** The requirement the rule checks, when the producer states it. */
+  readonly requirement?: string
+  /** Documentation the producer points at, when it has one. */
+  readonly helpUrl?: string
 }
 
 /**

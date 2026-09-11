@@ -4,9 +4,24 @@
  * @module @cbhdyl/dsh-test-observatory/command/experience
  */
 
-import { scoreRun } from '../experience/index.ts'
-import type { ExperienceRun, JourneyOutcome } from '../experience/index.ts'
+import { guidanceFor, scoreRun } from '../experience/index.ts'
+import type { CheckFinding as RunCheckFinding, ExperienceRun, JourneyOutcome, RuleGuidance } from '../experience/index.ts'
 import type { CheckFinding, EvidenceShot, ExperienceScore, FindingEvidence, Journey, Persona, UxFinding } from '../report/index.ts'
+
+/**
+ * The requirement and fix shown beside one finding: this package's own
+ * catalogue first, then whatever the producer stated about the rule.
+ * @param finding - one check finding.
+ * @returns the fields the report renders beside the finding.
+ */
+function checkGuidance(finding: RunCheckFinding): RuleGuidance | undefined {
+  const known = guidanceFor(finding.rule)
+  const requirement = known?.requirement ?? finding.requirement
+  const helpUrl = known?.helpUrl ?? finding.helpUrl
+  if (requirement === undefined) return undefined
+  const fix = known?.fix ?? 'Follow the linked rule documentation for the elements listed below.'
+  return { requirement, fix, ...(helpUrl === undefined ? {} : { helpUrl }) }
+}
 
 /** The experience section of the report model. */
 export interface ExperienceSection {
@@ -123,6 +138,7 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
         checks.push({
           rule: finding.rule,
           detail: finding.detail,
+          ...checkGuidance(finding),
           severity: finding.severity,
           family,
           persona: entry.persona,

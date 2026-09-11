@@ -140,6 +140,10 @@ export interface CheckFinding {
      * when the check could not read the page, which has no element to point at.
      */
     readonly evidence?: readonly ElementEvidence[];
+    /** The requirement the rule checks, when the producer states it. */
+    readonly requirement?: string;
+    /** Documentation the producer points at, when it has one. */
+    readonly helpUrl?: string;
 }
 /** The checks recorded for one journey. */
 export interface JourneyChecks {

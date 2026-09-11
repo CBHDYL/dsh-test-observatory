@@ -17,6 +17,10 @@ interface AxeViolation {
     readonly id: string;
     readonly impact: string | null;
     readonly help: string;
+    /** What the rule checks, in one sentence, as axe describes it. */
+    readonly description?: string;
+    /** axe's documentation page for the rule. */
+    readonly helpUrl?: string;
     readonly nodes: readonly AxeNode[];
 }
 /** Result of one in-page axe run. */

@@ -38,6 +38,10 @@ interface AxeViolation {
   readonly id: string
   readonly impact: string | null
   readonly help: string
+  /** What the rule checks, in one sentence, as axe describes it. */
+  readonly description?: string
+  /** axe's documentation page for the rule. */
+  readonly helpUrl?: string
   readonly nodes: readonly AxeNode[]
 }
 
@@ -138,11 +142,13 @@ export async function checkAccessibility(page: Page): Promise<readonly VisualVio
   await page.addScriptTag({ content: source })
   const results = await page.evaluate(async () => {
     const axe = (window as unknown as { axe: { run: (context: Document) => Promise<unknown> } }).axe
-    const report = await axe.run(document) as { violations: readonly { id: string; impact: string | null; help: string; nodes: readonly { target?: readonly (string | string[])[]; html?: string }[] }[] }
+    const report = await axe.run(document) as { violations: readonly { id: string; impact: string | null; help: string; description?: string; helpUrl?: string; nodes: readonly { target?: readonly (string | string[])[]; html?: string }[] }[] }
     return report.violations.map(violation => ({
       id: violation.id,
       impact: violation.impact,
       help: violation.help,
+      ...(violation.description === undefined ? {} : { description: violation.description }),
+      ...(violation.helpUrl === undefined ? {} : { helpUrl: violation.helpUrl }),
       nodes: violation.nodes.map(node => ({
         ...(node.target === undefined ? {} : { target: node.target }),
         ...(node.html === undefined ? {} : { html: node.html }),
@@ -159,6 +165,8 @@ export async function checkAccessibility(page: Page): Promise<readonly VisualVio
     return {
       rule: 'axe:' + violation.id,
       detail: violation.help + ' (' + String(violation.nodes.length) + ' node(s))',
+      ...(violation.description === undefined ? {} : { requirement: violation.description }),
+      ...(violation.helpUrl === undefined ? {} : { helpUrl: violation.helpUrl }),
       severity: violation.impact !== null && BLOCKING.has(violation.impact) ? 'high' : 'medium',
       evidence,
     }
