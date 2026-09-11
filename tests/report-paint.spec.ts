@@ -105,6 +105,18 @@ describe('the shipped report script', () => {
     expect(cells.map(cell => cell.textContent ?? '').join(' ')).not.toContain('0.0s')
   })
 
+  it('shows the same duration and kind in the row drawer', () => {
+    const source = model()
+    const finding = { kind: 'finding' as const, name: 'PLR0402 · a.py:7', path: 'a.py', status: 'failed' as const, suite: 'Static analysis', durationSeconds: 0, owner: 'Team' }
+    const dom = paint({ ...source, tests: [...source.tests, finding] }).dom
+    const document = dom.window.document
+    const rows = Array.from(document.querySelectorAll('#tbody tr'))
+    rows[1]?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    expect(document.querySelector('#drawerMeta')?.textContent ?? '').toContain('scan finding, not a test')
+    rows[0]?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    expect(document.querySelector('#dDuration')?.textContent).toBe('500ms')
+  })
+
   it('escapes a requirement that names an element', () => {
     const withMarkup = model()
     const document = paint({ ...withMarkup, checks: [{ ...withMarkup.checks[0]!, fix: 'Mark the title as <h1>.' }] }).dom.window.document
