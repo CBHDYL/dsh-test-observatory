@@ -7,7 +7,8 @@
 
 import { readFile } from 'node:fs/promises'
 import { parse as parseYaml } from 'yaml'
-import type { JourneySpec, SuiteCase, SuiteConfig, SuiteReportOptions } from './types.ts'
+import { STRUCTURED_RESULT_FORMATS } from './types.ts'
+import type { JourneySpec, StructuredResultFormat, SuiteCase, SuiteConfig, SuiteReportOptions } from './types.ts'
 import type { BehaviorOverride, EnvironmentPolicy, InputPolicy, ModalityPolicy, RecoveryPolicy, TimingPolicy } from '../experience/behavior/types.ts'
 
 /** A configuration problem a human must fix; never an internal failure. */
@@ -116,16 +117,29 @@ function toCase(raw: unknown, index: number): SuiteCase {
   }
 }
 
+/**
+ * The accepted formats, written the way a person says a list aloud: commas
+ * between entries and a final "or". It reads the same constant the check uses,
+ * so a new format cannot be accepted while the message still denies it.
+ * @returns the format names, in one readable list.
+ */
+function listFormats(): string {
+  const names = [...STRUCTURED_RESULT_FORMATS]
+  const last = names.pop() as string
+  return names.join(', ') + ' or ' + last
+}
+
 /** Validate one structured framework artifact declaration. */
 function toStructuredResult(raw: unknown, where: string): NonNullable<SuiteCase['result']> {
   const record = asRecord(raw)
   if (record === null) throw new SuiteConfigError(`${where}: must be a mapping`)
   const format = requireString(record, 'format', where)
-  const formats = ['junit', 'vitest', 'jest', 'playwright', 'pytest', 'api', 'performance', 'sarif'] as const
-  if (!formats.includes(format as typeof formats[number])) {
-    throw new SuiteConfigError(`${where}.format: must be junit, vitest, jest, playwright, pytest, api or performance`)
+  if (!(STRUCTURED_RESULT_FORMATS as readonly string[]).includes(format)) {
+    // The list in the message comes from the same constant the check uses, so a
+    // new format cannot be accepted while the message still denies it.
+    throw new SuiteConfigError(`${where}.format: must be ${listFormats()}`)
   }
-  return { format: format as typeof formats[number], path: requireString(record, 'path', where) }
+  return { format: format as StructuredResultFormat, path: requireString(record, 'path', where) }
 }
 
 /**

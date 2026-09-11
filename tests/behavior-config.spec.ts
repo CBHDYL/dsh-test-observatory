@@ -3,6 +3,8 @@
 // neutral policy while the report claims otherwise.
 import { describe, expect, it } from 'vitest'
 import { SuiteConfigError, parseSuiteConfig } from '../src/command/config.ts'
+import { STRUCTURED_RESULT_FORMATS } from '../src/command/types.ts'
+import type { SuiteConfig } from '../src/command/types.ts'
 import type { JourneySpec } from '../src/experience/types.ts'
 
 /** A suite document whose single journey carries the given behaviour lines. */
@@ -24,6 +26,45 @@ function withBehavior(lines: readonly string[]): JourneySpec {
     '',
   ].join('\n')).journeys?.[0] as JourneySpec
 }
+
+describe('structured result formats', () => {
+  /** A suite whose single case declares the given result format. */
+  function withFormat(format: string): SuiteConfig {
+    return parseSuiteConfig(['cases:', '  - name: a', '    command: x', '    result:', '      format: ' + format, '      path: out.xml', ''].join('\n'))
+  }
+
+  it('accepts every format the package advertises', () => {
+    for (const format of STRUCTURED_RESULT_FORMATS) {
+      expect(withFormat(format).cases[0]?.result?.format).toBe(format)
+    }
+  })
+
+  it('names every accepted format in the message it rejects with', () => {
+    // The message and the check read the same list; this caught the two drifting
+    // apart, where a valid format was accepted but absent from the advice.
+    let message = ''
+    try {
+      withFormat('nonsense')
+    } catch (error) {
+      message = (error as Error).message
+    }
+    for (const format of STRUCTURED_RESULT_FORMATS) expect(message).toContain(format)
+  })
+
+  it('names the offending position so a long document is navigable', () => {
+    expect(() => parseSuiteConfig([
+      'cases:',
+      '  - name: a',
+      '    command: x',
+      '  - name: b',
+      '    command: x',
+      '    result:',
+      '      format: nope',
+      '      path: out.xml',
+      '',
+    ].join('\n'))).toThrow(/cases\[1\]\.result\.format/)
+  })
+})
 
 describe('behaviour declarations', () => {
   it('accepts a preset name', () => {

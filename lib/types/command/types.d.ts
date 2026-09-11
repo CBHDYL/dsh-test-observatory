@@ -4,8 +4,14 @@
  */
 import type { JourneySpec } from '../experience/types.ts';
 export type { JourneySpec };
+/**
+ * Every structured result format this package can read. The runtime list is the
+ * single source of truth: the accepted values and the message that lists them
+ * are both derived from it, so adding a format cannot leave the two disagreeing.
+ */
+export declare const STRUCTURED_RESULT_FORMATS: readonly ["junit", "vitest", "jest", "playwright", "pytest", "api", "performance", "sarif"];
 /** Supported structured result formats emitted by test frameworks. */
-export type StructuredResultFormat = 'junit' | 'vitest' | 'jest' | 'playwright' | 'pytest' | 'api' | 'performance' | 'sarif';
+export type StructuredResultFormat = typeof STRUCTURED_RESULT_FORMATS[number];
 /** One structured result artifact written by a declared command. */
 export interface StructuredResultSpec {
     /** Parser selected for the artifact. */
