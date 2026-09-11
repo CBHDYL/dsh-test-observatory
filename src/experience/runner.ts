@@ -13,7 +13,7 @@ import { checkAccessibility } from './a11y.ts'
 import { checkKeyboard, probeOpenDialog } from './keyboard-checks.ts'
 import { applyEnvironment } from './behavior/environment.ts'
 import { behaviorDimensions, resolveBehavior } from './behavior/index.ts'
-import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT, captureElement, captureEvidence, captureFocused } from './capture.ts'
+import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT, captureElement, captureEvidence, captureFindingCrops, captureFocused } from './capture.ts'
 import type { Annotation } from './annotate.ts'
 import { checkVisual } from './visual.ts'
 
@@ -370,7 +370,17 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
             severity: 'medium',
           }]
         const findings = [...skipped, ...visual, ...accessibility, ...keyboard]
-        checks.push({ persona: spec.persona, visual: [...skipped, ...visual], accessibility, keyboard })
+        // One crop per finding, showing the elements that finding measured, so a
+        // reader sees the thing that is wrong rather than the page it is on.
+        const groups = { visual: [...skipped, ...visual], accessibility, keyboard }
+        const crops = await captureFindingCrops(page, [...groups.visual, ...groups.accessibility, ...groups.keyboard])
+        let nextCrop = 0
+        const illustrate = <T extends CheckFinding>(list: readonly T[]): T[] => list.map((finding) => {
+          const crop = crops[nextCrop]
+          nextCrop += 1
+          return crop === undefined ? finding : { ...finding, cropDataUri: crop }
+        })
+        checks.push({ persona: spec.persona, visual: illustrate(groups.visual), accessibility: illustrate(groups.accessibility), keyboard: illustrate(groups.keyboard) })
         // Mark the regions the checks measured on the journey's last capture.
         // The annotations come from findings that only exist once the checks have
         // run, so this is the first moment they can be drawn; the page is still

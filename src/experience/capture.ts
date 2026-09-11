@@ -14,9 +14,22 @@ import type { Annotation } from './annotate.ts'
 import { auditCapture } from './integrity.ts'
 import type { CaptureDefect } from './integrity.ts'
 import { maskDynamic } from './mask.ts'
+import type { ElementBox, ElementEvidence } from './geometry.ts'
 
 /** Bound on one captured image's encoded size, so the report stays openable. */
 export const MAX_SHOT_BYTES = 400_000
+/** Padding around a finding's elements, so the crop shows what surrounds them. */
+export const CROP_PADDING = 24
+/** Largest crop kept for one finding; a bigger one is re-encoded rather than dropped. */
+export const MAX_CROP_BYTES = 120_000
+/** Findings one page illustrates; a scan can report more than a reader will study. */
+export const MAX_FINDING_CROPS = 12
+/**
+ * Smallest crop worth showing. A 22-pixel input is still the thing that is
+ * wrong, so this floor only rejects a sliver, not a small control.
+ */
+export const MIN_CROP_PX = 40
+
 /** Share of a captured region that must carry content for the capture to stand alone. */
 export const MIN_INK_SHARE = 0.25
 
@@ -150,6 +163,69 @@ export async function captureElement(page: Page, selector: string): Promise<Capt
     return { defects: [...defects, { rule: 'evidence-too-large', detail: 'the element capture is ' + String(bytes.byteLength) + ' bytes, above the ' + String(MAX_SHOT_BYTES) + '-byte bound' }] }
   }
   return { clean: 'data:' + mime + ';base64,' + bytes.toString('base64'), defects }
+}
+
+/**
+ * One box covering every element a finding measured.
+ * @param boxes - the measured rectangles of the finding's elements.
+ * @param viewport - visible page size, so the crop stays inside the page.
+ * @returns the padded box, or undefined when no element was measured.
+ */
+function unionBox(boxes: readonly ElementBox[], viewport: { readonly width: number; readonly height: number }): { x: number; y: number; width: number; height: number } | undefined {
+  // Only viewport-space boxes share an origin with the clip rectangle; a
+  // full-page box is measured from the document top and would drag the union
+  // to the wrong place.
+  const measured = boxes.filter(box => box.width > 0 && box.height > 0 && box.space === 'viewport')
+  if (measured.length === 0) return undefined
+  const left = Math.max(0, Math.min(...measured.map(box => box.x)) - CROP_PADDING)
+  const top = Math.max(0, Math.min(...measured.map(box => box.y)) - CROP_PADDING)
+  const right = Math.min(viewport.width, Math.max(...measured.map(box => box.x + box.width)) + CROP_PADDING)
+  const bottom = Math.min(viewport.height, Math.max(...measured.map(box => box.y + box.height)) + CROP_PADDING)
+  if (right - left < MIN_CROP_PX || bottom - top < MIN_CROP_PX) return undefined
+  return { x: left, y: top, width: right - left, height: bottom - top }
+}
+
+/**
+ * Capture one picture per finding, showing the elements that finding measured.
+ *
+ * A whole-page screenshot of a finding says only that something is wrong
+ * somewhere on the page. The crop is the finding's own evidence: the boxes the
+ * check measured, with enough around them to place them.
+ * @param page - the page the findings were measured on.
+ * @param findings - the findings to illustrate, in report order.
+ * @returns one data URI per finding, in the same order, undefined where none could be taken.
+ */
+export async function captureFindingCrops(page: Page, findings: readonly { readonly evidence?: readonly ElementEvidence[] }[]): Promise<readonly (string | undefined)[]> {
+  // The viewport is only used to clamp the crop inside the page. A page that
+  // cannot report one still yields the finding itself, so the default stands in
+  // rather than failing the whole scan.
+  let viewport = { width: 1280, height: 720 }
+  try {
+    viewport = page.viewportSize() ?? viewport
+  } catch {
+    // A closed or detached page cannot report its size; the default clamps.
+  }
+  const crops: (string | undefined)[] = []
+  for (let index = 0; index < findings.length; index += 1) {
+    const finding = findings[index]
+    if (index >= MAX_FINDING_CROPS || finding?.evidence === undefined) { crops.push(undefined); continue }
+    const box = unionBox(finding.evidence.map(entry => entry.box), viewport)
+    if (box === undefined) { crops.push(undefined); continue }
+    try {
+      let bytes = await page.screenshot({ type: 'png', clip: box })
+      let mime = 'image/png'
+      if (bytes.byteLength > MAX_CROP_BYTES) {
+        bytes = await page.screenshot({ type: 'jpeg', quality: 60, clip: box })
+        mime = 'image/jpeg'
+      }
+      crops.push(bytes.byteLength > MAX_CROP_BYTES ? undefined : 'data:' + mime + ';base64,' + bytes.toString('base64'))
+    } catch {
+      // A crop is an illustration, not evidence of correctness; a page that
+      // cannot be captured still reports the finding itself.
+      crops.push(undefined)
+    }
+  }
+  return crops
 }
 
 /**

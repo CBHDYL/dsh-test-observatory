@@ -238,6 +238,8 @@ export interface CheckFinding {
    * when the producer reported no target, which is stated rather than guessed.
    */
   readonly evidence?: readonly FindingEvidence[]
+  /** The elements this finding measured, cropped to them, as a data URI. */
+  readonly cropDataUri?: string
   /** The requirement the rule checks, stated as what must hold. */
   readonly requirement?: string
   /** The change that satisfies the rule. */

@@ -137,6 +137,11 @@ export interface CheckFinding {
    * when the check could not read the page, which has no element to point at.
    */
   readonly evidence?: readonly ElementEvidence[]
+  /**
+   * A picture of the elements this finding measured, cropped to them. Absent
+   * when no element could be measured or captured.
+   */
+  readonly cropDataUri?: string
   /** The requirement the rule checks, when the producer states it. */
   readonly requirement?: string
   /** Documentation the producer points at, when it has one. */

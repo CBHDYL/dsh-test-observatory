@@ -149,6 +149,7 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
           family,
           persona: entry.persona,
           ...(evidence.length === 0 ? {} : { evidence }),
+          ...(finding.cropDataUri === undefined ? {} : { cropDataUri: finding.cropDataUri }),
         })
       }
     }
