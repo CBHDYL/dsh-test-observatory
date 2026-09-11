@@ -131,8 +131,12 @@ describe('narrative writer', () => {
         yield { type: 'finish' }
       })(),
     }
-    const reply = await llmNarrativeWriter(llm, { provider: 'p', model: 'm' })({ system: 's', prompt: 'p', signal: new AbortController().signal })
+    let sent: unknown
+    const capturing: NarrativeLlm = { stream: (options) => { sent = options; return (async function* () { yield { type: 'text-delta', text: '{"risk":"ok","findings":[]}' } })() } }
+    const reply = await llmNarrativeWriter(capturing, { provider: 'p', model: 'm' })({ system: 's', prompt: 'the digest', signal: new AbortController().signal })
     expect(reply).toBe('{"risk":"ok","findings":[]}')
+    // A string content is rejected by the real adapter, so the writer must send blocks.
+    expect(JSON.stringify(sent)).toContain('[{"type":"text","text":"the digest"}]')
   })
 })
 

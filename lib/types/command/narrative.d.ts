@@ -55,7 +55,10 @@ export interface NarrativeLlm {
         system: string;
         messages: readonly {
             readonly role: 'user';
-            readonly content: string;
+            readonly content: readonly {
+                readonly type: 'text';
+                readonly text: string;
+            }[];
         }[];
         signal: AbortSignal;
     }): AsyncIterable<{

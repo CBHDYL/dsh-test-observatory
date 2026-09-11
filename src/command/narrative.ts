@@ -78,7 +78,7 @@ export interface NarrativeLlm {
     provider: string
     model: string
     system: string
-    messages: readonly { readonly role: 'user'; readonly content: string }[]
+    messages: readonly { readonly role: 'user'; readonly content: readonly { readonly type: 'text'; readonly text: string }[] }[]
     signal: AbortSignal
   }): AsyncIterable<{ readonly type: string; readonly text?: string }>
 }
@@ -97,7 +97,7 @@ export function llmNarrativeWriter(llm: NarrativeLlm, route: { readonly provider
       provider: route.provider,
       model: route.model,
       system: request.system,
-      messages: [{ role: 'user', content: request.prompt }],
+      messages: [{ role: 'user', content: [{ type: 'text', text: request.prompt }] }],
       signal: request.signal,
     })) {
       if (chunk.type === 'text-delta' && typeof chunk.text === 'string') text += chunk.text
