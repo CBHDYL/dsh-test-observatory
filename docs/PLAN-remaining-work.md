@@ -236,6 +236,38 @@ return flaky ? { ...test, status: 'flaky' as const } : test                     
 2. **焦点可见性判据被真实浏览器的简写格式击穿**：Chromium 报告 `outline` 计算值为 `rgb(0, 0, 0) none 3px`，颜色中的空格让按空白切分的判据把 `outline: none` 读成「有焦点指示」。改为按整词匹配 `none` 关键字，并正确解析颜色 alpha 与宽度。真实 Chromium 正反两面验证：默认焦点环 → 无发现；去掉指示器 → 2/2 被报告。
 3. **Playwright 的 `evaluate` 只接受一个参数且拒绝函数值**：标注载荷改为单对象；焦点判据改为以源码字符串传递、在页面内重建。
 4. **`planInputs` 的变体命名歧义**：声明值原本也用 `kind: 'empty'`，与 `empty` 边界变体撞名。新增 `declared` 变体名。
+
+## 8.3 B8 与工作流 E 进度（2026-09-10 收尾）
+
+### B8 真实应用回归 ✅
+
+`ai-engineer-learning` 的配置已为六个 persona 声明策略，真实运行结果：
+
+| persona | 策略 | 生效维度 | 完成率 |
+|---|---|---|---:|
+| 首次访问用户 | `first-time` | hesitant | 100% |
+| 熟练用户 | `expert` | no-settle, recovery-paths | 100% |
+| 易错用户 | `error-prone` | boundary-input, retries, recovery-paths | 100% |
+| 移动用户 | `mobile` | paced, slow4g, cpu×4, retries, recovery-paths | 100% |
+| 键盘与无障碍用户 | `keyboard` | keyboard-only, recovery-paths | 100% |
+| 急躁用户 | `impatient` | double-submit, no-settle | 100% |
+
+六个 persona 的策略与生效维度**互不相同**；报告中 6 份证据全部带有标注图。
+
+### 过程中发现并修复的缺陷
+
+1. **`settleBudgetMs` 是一个没人读的数字**：导航使用浏览器默认超时，所以策略声明的等待预算从未真正约束导航。已改为用该预算约束 `goto` 超时。
+2. **`mobile` 预设的 `slow3g` 对本地服务不现实**：实测三种 profile 的加载耗时——基线 762ms、slow4g 4.5s、fast3g 9.0s、slow3g 33.6s。slow3g 的 400ms 往返延迟是蜂窝网络的属性，而引擎只能塑造带宽；本地服务不会经历它。已改用 `slow4g` 并提高到 45s 预算，同时新增一项测试断言**任何声明了网络 profile 的预设，其等待预算必须足以完成该 profile**。
+
+### 工作流 E Tier 1 ✅
+
+| # | 变更 | 状态 |
+|---|---|---|
+| 2 | JUnit 方言加固 | ✅ 独立 `junit.ts`：根 `<testsuite>`/`<testsuites>`、自闭合 `<failure/>`、CDATA、`<skipped/>`、rerun/flaky 元素计为 attempts、实体解码、**截断文档视为错误** |
+| 3 | `attempts` /「重试后通过」 | ✅ 已接入报告头部与 KPI，措辞明确为「重试后通过」而非 flaky |
+| 4 | SARIF 2.1.0 解析器 | ✅ 独立 `sarif.ts`：多 run、ruleId 回退到工具名、level 映射、位置信息、**拒绝未发布版本 2.2** |
+| 5 | 快照计数 | ⬜ 未做 |
+| 1 | `not run (deselected)` 行状态 | ⬜ 未做（当前无产出者，已记录为引入选择性运行时的前置条件） |
 ## 9. 与原始目标的对照
 
 | 原始要求 | 当前 | 计划中 |
