@@ -7,6 +7,7 @@
  */
 import { type Browser } from 'playwright-core';
 import type { ExperienceRun, JourneySpec } from './types.ts';
+import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT } from './capture.ts';
 /** Deadline for the best-effort wait before page checks run. */
 export declare const SETTLE_TIMEOUT_MS = 20000;
 /** Default settle time for a `wait` action that names no selector. */
@@ -19,7 +20,7 @@ export declare const DEFAULT_VIEWPORT: {
     readonly height: 900;
 };
 /** Bound on one captured screenshot's encoded size, so the report stays openable. */
-export declare const MAX_SHOT_BYTES = 400000;
+export { MAX_SHOT_BYTES_LIMIT as MAX_SHOT_BYTES };
 /** Browser launcher seam. */
 export type BrowserLauncher = (executablePath: string | undefined) => Promise<Browser>;
 /**
@@ -56,6 +57,12 @@ export interface RunOptions {
      * data after load needs this long enough to reach its real screen.
      */
     readonly settleTimeoutMs?: number;
+    /**
+     * Selectors of dynamic regions hidden for every capture. A timestamp or a live
+     * counter changes between runs, so a capture containing one cannot be compared
+     * with any later capture (default none).
+     */
+    readonly masks?: readonly string[];
 }
 /**
  * Drive every declared journey in a real browser and collect the evidence.

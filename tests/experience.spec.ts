@@ -3,6 +3,15 @@ import { SCORE_DIMENSIONS, SLOW_STEP_MS, bandFor, scoreRun } from '../src/experi
 import { launchChromium, runExperience } from '../src/experience/runner.ts'
 import type { ExperienceRun, JourneyOutcome } from '../src/experience/types.ts'
 
+/** The in-page evaluator every capture double needs: it reports the viewport. */
+const viewportEvaluator = async (expression: unknown, ...args: unknown[]): Promise<unknown> => {
+  const source = String(expression)
+  if (source.includes('innerWidth')) return { width: 1440, height: 900 }
+  const fn = expression as (...values: unknown[]) => unknown
+  return fn(...args)
+}
+
+
 /** Build one settled journey. */
 function journey(persona: string, states: readonly ('PASS' | 'FAIL' | 'BLOCKED')[], durationMs = 100): JourneyOutcome {
   return {
@@ -175,6 +184,7 @@ describe('runExperience', () => {
       getByText: () => ({ first: () => ({ waitFor: async () => {} }) }),
       locator: () => ({ first: () => ({ waitFor: async () => {} }) }),
       screenshot: async () => Buffer.from('png'),
+      evaluate: viewportEvaluator,
       close: async () => {},
     }
     const fakeBrowser = {
@@ -207,6 +217,7 @@ describe('runExperience', () => {
     const fakePage = {
       click: async () => { throw new Error('missing button') },
       screenshot: async () => Buffer.from('failure'),
+      evaluate: viewportEvaluator,
       url: () => 'http://example.test/app',
       close: async () => {},
     }
@@ -229,6 +240,7 @@ describe('runExperience', () => {
       getByText: () => ({ first: () => ({ waitFor: async () => {} }) }),
       locator: () => ({ first: () => ({ waitFor: async () => {} }) }),
       screenshot: async () => Buffer.from('12345'),
+      evaluate: viewportEvaluator,
       close: async () => {},
     }
     const result = await runExperience({
@@ -260,6 +272,7 @@ describe('runExperience', () => {
       waitForLoadState: async () => {},
       locator: (selector: string) => ({ first: () => ({ waitFor: async () => { calls.push('visible:' + selector) } }) }),
       screenshot: async () => Buffer.from('png'),
+      evaluate: viewportEvaluator,
       close: async () => {},
     }
     const result = await runExperience({
@@ -304,6 +317,7 @@ describe('runExperience', () => {
       getByText: () => ({ first: () => ({ waitFor: async () => {} }) }),
       locator: () => ({ first: () => ({ waitFor: async () => {} }) }),
       screenshot: async () => big,
+      evaluate: viewportEvaluator,
       close: async () => {},
     }
     const result = await runExperience({

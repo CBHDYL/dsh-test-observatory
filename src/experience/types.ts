@@ -5,6 +5,8 @@
  * @module @deepseek-ai/dsh-experience-runner/types
  */
 
+import type { CaptureDefect } from './integrity.ts'
+
 /** One declared browser interaction inside a journey step. */
 export type JourneyAction =
   | { readonly kind: 'goto'; readonly url: string }
@@ -57,6 +59,18 @@ export interface CapturedShot {
   readonly meta: string
   /** A data:image/png;base64 payload. */
   readonly dataUri: string
+  /**
+   * The same page state with the findings marked, when a region could be
+   * measured. Absent means no mark applies to this capture, not that marking
+   * failed.
+   */
+  readonly annotatedDataUri?: string
+  /**
+   * Integrity defects found in this capture. Any entry means the image must be
+   * shown as untrusted: an unverifiable screenshot looks identical to a correct
+   * one, so the reader has to be told.
+   */
+  readonly integrityDefects?: readonly CaptureDefect[]
 }
 
 /** One settled step outcome. */

@@ -9,6 +9,7 @@
 import { chromium, type Browser, type Page } from 'playwright-core'
 import type { CapturedShot, CheckFinding, ExperienceRun, JourneyAction, JourneyChecks, JourneyOutcome, JourneySpec, StepOutcome } from './types.ts'
 import { checkAccessibility } from './a11y.ts'
+import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT, captureEvidence } from './capture.ts'
 import { checkVisual } from './visual.ts'
 
 /** Deadline for the best-effort wait before page checks run. */
@@ -24,32 +25,7 @@ export const DEFAULT_STEP_TIMEOUT_MS = 15000
 export const DEFAULT_VIEWPORT = { width: 1440, height: 900 } as const
 
 /** Bound on one captured screenshot's encoded size, so the report stays openable. */
-export const MAX_SHOT_BYTES = 400_000
-
-/**
- * Capture the page within the report's size bound, degrading quality and then
- * scale rather than dropping the evidence a human needs to judge the finding.
- * @param page - the page to capture.
- * @returns the data URI, or undefined when even the smallest capture exceeds the bound.
- */
-async function captureBounded(page: Page): Promise<string | undefined> {
-  const attempts: readonly { type: 'png' | 'jpeg'; quality?: number }[] = [
-    { type: 'png' },
-    { type: 'jpeg', quality: 70 },
-    { type: 'jpeg', quality: 45 },
-    { type: 'jpeg', quality: 25 },
-  ]
-  for (const attempt of attempts) {
-    const options: { type: 'png' | 'jpeg'; quality?: number } = { type: attempt.type }
-    if (attempt.quality !== undefined) options.quality = attempt.quality
-    const buffer = await page.screenshot(options)
-    if (buffer.byteLength <= MAX_SHOT_BYTES) {
-      const mime = attempt.type === 'png' ? 'image/png' : 'image/jpeg'
-      return 'data:' + mime + ';base64,' + buffer.toString('base64')
-    }
-  }
-  return undefined
-}
+export { MAX_SHOT_BYTES_LIMIT as MAX_SHOT_BYTES }
 
 /**
  * Run one page check, turning any failure into a single finding. A check that
@@ -242,6 +218,12 @@ export interface RunOptions {
    * data after load needs this long enough to reach its real screen.
    */
   readonly settleTimeoutMs?: number
+  /**
+   * Selectors of dynamic regions hidden for every capture. A timestamp or a live
+   * counter changes between runs, so a capture containing one cannot be compared
+   * with any later capture (default none).
+   */
+  readonly masks?: readonly string[]
 }
 
 /**
@@ -257,6 +239,7 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
   const checks: JourneyChecks[] = []
   const retries = options.retries ?? 0
   const settleTimeoutMs = options.settleTimeoutMs ?? SETTLE_TIMEOUT_MS
+  const masks = options.masks ?? []
   const browser = await launch(executable)
   try {
     const journeys: JourneyOutcome[] = []
@@ -267,10 +250,21 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
       const meta = [spec.device, String(viewport.width) + 'x' + String(viewport.height)].join(' · ')
       let activeStepLabel = ''
       const capture = async (caption: string, category: CapturedShot['category']): Promise<string | undefined> => {
-        const shot = await captureBounded(page)
-        if (shot === undefined) return undefined
+        const result = await captureEvidence(page, [], masks)
+        if (result.clean === undefined) return undefined
         const id = 'evidence-' + String(shots.length + 1)
-        shots.push({ id, caption, category, persona: spec.persona, journey: spec.name, stepLabel: activeStepLabel, meta, dataUri: shot })
+        shots.push({
+          id,
+          caption,
+          category,
+          persona: spec.persona,
+          journey: spec.name,
+          stepLabel: activeStepLabel,
+          meta,
+          dataUri: result.clean,
+          ...(result.annotated === undefined ? {} : { annotatedDataUri: result.annotated }),
+          ...(result.defects.length === 0 ? {} : { integrityDefects: result.defects }),
+        })
         return id
       }
       const journey = await runJourney(page, spec, async (caption, category) => capture(caption, category), retries, settleTimeoutMs, label => { activeStepLabel = label })
