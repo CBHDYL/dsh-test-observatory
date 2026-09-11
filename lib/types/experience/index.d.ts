@@ -14,3 +14,5 @@ export type { ExperienceScore, ScoreDimension, ScoreDimensionSpec } from './scor
 export type * from './types.ts';
 export type { RuleGuidance } from './rules.ts';
 export { guidanceFor, axeGuidance } from './rules.ts';
+export { findDuplicateEvidence } from './integrity.ts';
+export type { DuplicateEvidence } from './integrity.ts';

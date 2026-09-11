@@ -4,7 +4,7 @@
  * @module @cbhdyl/dsh-test-observatory/command/experience
  */
 
-import { guidanceFor, scoreRun } from '../experience/index.ts'
+import { findDuplicateEvidence, guidanceFor, scoreRun } from '../experience/index.ts'
 import type { CheckFinding as RunCheckFinding, ExperienceRun, JourneyOutcome, RuleGuidance } from '../experience/index.ts'
 import type { CheckFinding, EvidenceShot, ExperienceScore, FindingEvidence, Journey, Persona, UxFinding } from '../report/index.ts'
 
@@ -101,6 +101,9 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
       ...(step.evidenceIds === undefined ? {} : { evidenceIds: step.evidenceIds }),
     })),
   }))
+  // Two journeys that open the same page capture the same bytes; the report
+  // must say so rather than present one observation as several.
+  const duplicateOf = new Map(findDuplicateEvidence(run.shots.map(shot => ({ id: shot.id, imageDataUri: shot.dataUri }))).map((entry): [string, string] => [entry.id, entry.firstId]))
   const evidence: EvidenceShot[] = run.shots.map(shot => ({
     id: shot.id,
     title: shot.caption,
@@ -112,6 +115,9 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
     imageDataUri: shot.dataUri,
     ...(shot.annotatedDataUri === undefined ? {} : { annotatedImageDataUri: shot.annotatedDataUri }),
     ...(shot.integrityDefects === undefined ? {} : { integrityDefects: shot.integrityDefects }),
+    ...(duplicateOf.has(shot.id)
+      ? { integrityDefects: [...(shot.integrityDefects ?? []), { rule: 'evidence-duplicate', detail: 'this capture is byte-identical to ' + String(duplicateOf.get(shot.id)) + ', so it is one observation shown twice' }] }
+      : {}),
   }))
   const findings = run.journeys.flatMap((journey, journeyIndex) =>
     journey.steps

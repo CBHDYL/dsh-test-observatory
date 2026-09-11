@@ -1,14 +1,3 @@
-/**
- * Evidence integrity: the checks that make "this screenshot is trustworthy" a
- * statement the report can support rather than an assumption.
- *
- * Two questions are answered separately and never conflated:
- * 1. Is the image a faithful capture of what the browser rendered then?
- * 2. Is the interface itself correct?
- * This module answers only the first. The second needs a reviewed baseline and
- * a human, and is therefore out of scope here.
- * @module @cbhdyl/dsh-test-observatory/experience/integrity
- */
 import type { OverlayRect } from './annotate.ts';
 /** One integrity problem found in a capture. */
 export interface CaptureDefect {
@@ -36,6 +25,26 @@ export interface CaptureFacts {
     /** Height of the captured image, when it could be measured. */
     readonly imageHeight?: number;
 }
+/**
+ * One capture that repeats an earlier capture in the same run. Two journeys that
+ * open the same page produce byte-identical images; showing both as separate
+ * evidence claims two observations where the run made one.
+ */
+export interface DuplicateEvidence {
+    /** Capture that repeats an earlier one. */
+    readonly id: string;
+    /** The first capture carrying the same image. */
+    readonly firstId: string;
+}
+/**
+ * Find captures whose image repeats an earlier capture's image.
+ * @param shots - every capture the run made, in capture order.
+ * @returns the repeats, each naming the capture it duplicates.
+ */
+export declare function findDuplicateEvidence(shots: readonly {
+    readonly id: string;
+    readonly imageDataUri: string;
+}[]): readonly DuplicateEvidence[];
 /** Smallest capture that is still considered usable evidence. */
 export declare const MIN_CAPTURE_BYTES = 1024;
 /**
