@@ -331,6 +331,70 @@ describe('runExperience', () => {
     expect(result.journeys[0]?.passed).toBe(true)
   })
 
+  it('runs the keyboard checks and records them as their own family', async () => {
+    const page = {
+      goto: async () => {},
+      waitForLoadState: async () => {},
+      getByText: () => ({ first: () => ({ waitFor: async () => {} }) }),
+      locator: () => ({ first: () => ({ waitFor: async () => {} }), count: async () => 0 }),
+      url: () => 'http://app.test/',
+      addScriptTag: async () => {},
+      close: async () => {},
+      screenshot: async () => Buffer.from('shot'),
+      // The declarative and axe checks read the page through this evaluator, as
+      // does the keyboard inspection; each returns nothing for this page.
+      evaluate: async (expression: unknown): Promise<unknown> => {
+        const source = String(expression)
+        // The viewport measurement is the only call that reads innerWidth, so it
+        // is identified by the absence of the inspection bodies rather than by a
+        // keyword the visual inspection also happens to contain.
+        // Order matters: the visual inspection also reads innerWidth and its
+        // serialized body mentions maxSamples, so it is matched first.
+        if (source.includes('collectViolations')) return []
+        if (source.includes('reachable selector list')) return []
+        if (source.includes('MAX_FOCUS') || source.includes('maxSamples') && source.includes('drawsFocus')) return [{ rule: 'keyboard-focus-not-visible', detail: '1 of 1', severity: 'medium', evidence: [] }]
+        if (source.includes('innerWidth')) return { width: 1440, height: 900 }
+        return []
+      },
+    }
+    const run = await runExperience({
+      journeys: [{ persona: 'Keyboard', device: 'Desktop', name: 'J', steps: [{ label: 's', actions: [{ kind: 'goto', url: 'http://app.test/' }] }] }],
+      launch: async () => ({ newPage: async () => page, close: async () => {} }) as never,
+      executable: () => undefined,
+      accessibilityChecks: false,
+    })
+    expect(run.checks[0]?.keyboard.map(finding => finding.rule)).toEqual(['keyboard-focus-not-visible'])
+    // The family is separate from the visual findings, so a reader can tell a
+    // keyboard barrier from a layout defect.
+    expect(run.checks[0]?.visual).toEqual([])
+  })
+
+  it('omits the keyboard checks when they are disabled', async () => {
+    let inspected = false
+    const page = {
+      goto: async () => {},
+      waitForLoadState: async () => {},
+      url: () => 'http://app.test/',
+      addScriptTag: async () => {},
+      close: async () => {},
+      evaluate: async (expression: unknown): Promise<unknown> => {
+        const source = String(expression)
+        if (source.includes('drawsFocus')) inspected = true
+        if (source.includes('collectViolations')) return []
+        if (source.includes('innerWidth')) return { width: 1440, height: 900 }
+        return []
+      },
+    }
+    await runExperience({
+      journeys: [{ persona: 'P', device: 'D', name: 'J', steps: [{ label: 's', actions: [{ kind: 'goto', url: 'http://app.test/' }] }] }],
+      launch: async () => ({ newPage: async () => page, close: async () => {} }) as never,
+      executable: () => undefined,
+      accessibilityChecks: false,
+      keyboardChecks: false,
+    })
+    expect(inspected).toBe(false)
+  })
+
   it('honours DSH_BROWSER_EXECUTABLE in the default resolver', async () => {
     const previous = process.env['DSH_BROWSER_EXECUTABLE']
     process.env['DSH_BROWSER_EXECUTABLE'] = '/custom/chrome'

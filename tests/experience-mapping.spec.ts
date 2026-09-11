@@ -79,8 +79,8 @@ describe('toExperienceSection', () => {
     const section = toExperienceSection(run(
       [journey('A', 'Task', [step('open', 'PASS')]), journey('B', 'Task', [step('open', 'PASS')])],
       [
-        { persona: 'A', visual: [duplicated], accessibility: [] },
-        { persona: 'B', visual: [duplicated], accessibility: [] },
+        { persona: 'A', visual: [duplicated], accessibility: [], keyboard: [] },
+        { persona: 'B', visual: [duplicated], accessibility: [], keyboard: [] },
       ],
     ))
     expect(section.checks).toHaveLength(1)
@@ -90,7 +90,7 @@ describe('toExperienceSection', () => {
   it('keeps a distinct accessibility finding alongside the visual family', () => {
     const section = toExperienceSection(run(
       [journey('A', 'Task', [step('open', 'PASS')])],
-      [{ persona: 'A', visual: [{ rule: 'x', detail: 'same', severity: 'medium' }], accessibility: [{ rule: 'x', detail: 'same', severity: 'high' }] }],
+      [{ persona: 'A', visual: [{ rule: 'x', detail: 'same', severity: 'medium' }], accessibility: [{ rule: 'x', detail: 'same', severity: 'high' }], keyboard: [] }],
     ))
     expect(section.checks.map(finding => finding.family)).toEqual(['visual', 'accessibility'])
   })

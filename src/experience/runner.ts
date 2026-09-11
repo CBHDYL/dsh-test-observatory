@@ -9,6 +9,7 @@
 import { chromium, type Browser, type Page } from 'playwright-core'
 import type { CapturedShot, CheckFinding, ExperienceRun, JourneyAction, JourneyChecks, JourneyOutcome, JourneySpec, StepOutcome } from './types.ts'
 import { checkAccessibility } from './a11y.ts'
+import { checkKeyboard, probeOpenDialog } from './keyboard-checks.ts'
 import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT, captureEvidence } from './capture.ts'
 import type { Annotation } from './annotate.ts'
 import { checkVisual } from './visual.ts'
@@ -249,6 +250,8 @@ export interface RunOptions {
   readonly visualChecks?: boolean
   /** Whether to run the axe-core accessibility scan (default true). */
   readonly accessibilityChecks?: boolean
+  /** Whether to run the keyboard barrier checks (default true). */
+  readonly keyboardChecks?: boolean
   /** Extra attempts per failed step (default 0). */
   readonly retries?: number
   /**
@@ -328,6 +331,11 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
         const accessibility = !reachedApp || options.accessibilityChecks === false
           ? []
           : await containCheck('accessibility', () => checkAccessibility(page))
+        // Keyboard barriers need real key events, so the dialog probe runs here
+        // rather than inside a single page evaluation.
+        const keyboard = !reachedApp || options.keyboardChecks === false
+          ? []
+          : await containCheck('keyboard', async () => [...await checkKeyboard(page), ...await probeOpenDialog(page)])
         const skipped: readonly CheckFinding[] = reachedApp
           ? []
           : [{
@@ -335,8 +343,8 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
             detail: 'the journey never reached the app (the page is ' + page.url() + '), so page checks would describe the browser error page instead',
             severity: 'medium',
           }]
-        const findings = [...skipped, ...visual, ...accessibility]
-        checks.push({ persona: spec.persona, visual: [...skipped, ...visual], accessibility })
+        const findings = [...skipped, ...visual, ...accessibility, ...keyboard]
+        checks.push({ persona: spec.persona, visual: [...skipped, ...visual], accessibility, keyboard })
         // Mark the regions the checks measured on the journey's last capture.
         // The annotations come from findings that only exist once the checks have
         // run, so this is the first moment they can be drawn; the page is still

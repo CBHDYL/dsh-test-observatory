@@ -67,7 +67,7 @@ describe('checkAccessibility', () => {
 
 describe('scoreRun with recorded checks', () => {
   it('gives full visual and accessibility weight when no violation was found', () => {
-    const score = scoreRun(run([{ persona: 'a', visual: [], accessibility: [] }]))
+    const score = scoreRun(run([{ persona: 'a', visual: [], accessibility: [], keyboard: [] }]))
     expect(score.total).toBe(100)
     expect(score.visualFindings).toBe(0)
     expect(score.accessibilityFindings).toBe(0)
@@ -81,6 +81,7 @@ describe('scoreRun with recorded checks', () => {
         { rule: 'image-no-alt', detail: 'y', severity: 'medium' },
       ],
       accessibility: [],
+      keyboard: [],
     }]))
     expect(score.dimensions.find(d => d.label === 'Visual quality')?.earned).toBe(8)
     expect(score.visualFindings).toBe(2)
@@ -90,6 +91,7 @@ describe('scoreRun with recorded checks', () => {
     const heavy = scoreRun(run([{
       persona: 'a',
       visual: [],
+      keyboard: [],
       accessibility: Array.from({ length: 6 }, (_, index) => ({ rule: 'axe:' + String(index), detail: 'x', severity: 'high' as const })),
     }]))
     expect(heavy.dimensions.find(d => d.label === 'Accessibility')?.earned).toBe(0)

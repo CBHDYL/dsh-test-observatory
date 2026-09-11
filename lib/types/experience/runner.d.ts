@@ -49,6 +49,8 @@ export interface RunOptions {
     readonly visualChecks?: boolean;
     /** Whether to run the axe-core accessibility scan (default true). */
     readonly accessibilityChecks?: boolean;
+    /** Whether to run the keyboard barrier checks (default true). */
+    readonly keyboardChecks?: boolean;
     /** Extra attempts per failed step (default 0). */
     readonly retries?: number;
     /**

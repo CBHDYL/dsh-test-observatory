@@ -136,6 +136,8 @@ export interface JourneyChecks {
     readonly visual: readonly CheckFinding[];
     /** Accessibility violations. */
     readonly accessibility: readonly CheckFinding[];
+    /** Keyboard barrier findings. */
+    readonly keyboard: readonly CheckFinding[];
 }
 /** The complete result of one human-simulation run. */
 export interface ExperienceRun {

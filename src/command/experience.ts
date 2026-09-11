@@ -106,7 +106,7 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
   const seen = new Set<string>()
   const checks: CheckFinding[] = []
   for (const entry of run.checks) {
-    for (const [family, findings] of [['visual', entry.visual], ['accessibility', entry.accessibility]] as const) {
+    for (const [family, findings] of [['visual', entry.visual], ['accessibility', entry.accessibility], ['keyboard', entry.keyboard]] as const) {
       for (const finding of findings) {
         const key = family + '|' + finding.rule + '|' + finding.detail
         if (seen.has(key)) continue

@@ -220,7 +220,7 @@ export interface CheckFinding {
   /** Whether the finding blocks a user task. */
   readonly severity: 'high' | 'medium'
   /** Check family the finding belongs to. */
-  readonly family: 'visual' | 'accessibility'
+  readonly family: 'visual' | 'accessibility' | 'keyboard'
   /** Persona the check ran for. */
   readonly persona: string
   /**
