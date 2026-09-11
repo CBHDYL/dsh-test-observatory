@@ -53,6 +53,12 @@ export interface SuiteReportOptions {
   readonly project?: string
   /** History JSON path; set to false to disable history. */
   readonly historyPath?: string | false
+  /**
+   * Model route whose replies annotate the report with an interpretation of the
+   * recorded facts. Absent or `false` leaves the report's own verdict in place
+   * and adds no model-written prose.
+   */
+  readonly narrative?: { readonly provider: string; readonly model: string }
 }
 
 /** The complete `test-observatory.yml` document. */

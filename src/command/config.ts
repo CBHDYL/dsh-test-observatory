@@ -151,7 +151,7 @@ function toReportOptions(raw: unknown): SuiteReportOptions {
   if (raw === undefined) return {}
   const record = asRecord(raw)
   if (record === null) throw new SuiteConfigError('report: must be a mapping')
-  const options: { title?: string; outputPath?: string; project?: string; historyPath?: string | false } = {}
+  const options: { title?: string; outputPath?: string; project?: string; historyPath?: string | false; narrative?: { provider: string; model: string } } = {}
   for (const key of ['title', 'outputPath', 'project'] as const) {
     const value = record[key]
     if (value === undefined) continue
@@ -164,6 +164,12 @@ function toReportOptions(raw: unknown): SuiteReportOptions {
   if (historyPath !== undefined) {
     if (historyPath !== false && (typeof historyPath !== 'string' || historyPath.trim().length === 0)) throw new SuiteConfigError('report.historyPath: must be a non-empty string or false')
     options.historyPath = historyPath
+  }
+  const narrative = record['narrative']
+  if (narrative !== undefined && narrative !== false) {
+    const route = asRecord(narrative)
+    if (route === null) throw new SuiteConfigError('report.narrative: must be a mapping with provider and model, or false')
+    options.narrative = { provider: requireString(route, 'provider', 'report.narrative'), model: requireString(route, 'model', 'report.narrative') }
   }
   return options
 }

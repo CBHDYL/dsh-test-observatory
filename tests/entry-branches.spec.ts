@@ -191,6 +191,7 @@ describe('command handler containment', () => {
     let definition: CommandDefinition | undefined
     const ctx = {
       effect: (register: () => unknown) => register(),
+      get: () => undefined,
       commands: { register: (registered: CommandDefinition) => { definition = registered; return () => undefined } },
     } as unknown as Context
     commandPlugin.apply(ctx)

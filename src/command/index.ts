@@ -16,6 +16,10 @@ import { buildReportModel, runCase } from './runner.ts'
 import { toExperienceSection } from './experience.ts'
 import { describeDetection, detectProject } from './detect.ts'
 import { readStructuredResult } from './structured.ts'
+import { NARRATIVE_SYSTEM, applyNarrative, buildNarrativePrompt, llmNarrativeWriter, parseRunNarrative } from './narrative.ts'
+import type { NarrativeLlm } from './narrative.ts'
+import type { ReportModel } from '../report/types.ts'
+import type { SuiteConfig } from './types.ts'
 import { describeSnapshots } from './snapshots.ts'
 import type { SnapshotCounts } from './snapshots.ts'
 import { projectHistory } from './history.ts'
@@ -41,7 +45,7 @@ export function apply(ctx: Context): void {
     name: 'test',
     description: 'Run a declared test suite and write a Test Observatory HTML report',
     input: { hint: 'config file path, or "auto"' },
-    handler: invocation => execute(invocation),
+    handler: invocation => execute(invocation, ctx),
   }), 'command-test lifecycle')
 }
 
@@ -50,7 +54,31 @@ export function apply(ctx: Context): void {
  * @param invocation - the parsed invocation.
  * @returns the human-facing outcome.
  */
-async function execute(invocation: CommandInvocation): Promise<CommandResult> {
+/**
+ * Annotate the report with the configured model's interpretation of its own
+ * recorded facts. A missing service or a failed call leaves the report
+ * complete and reports the reason to the caller; the narrative is never
+ * allowed to fail the run.
+ * @param ctx - the registrant context carrying the optional llm service.
+ * @param model - the report model the run produced.
+ * @param config - the loaded suite configuration.
+ * @param signal - caller-owned cancellation.
+ * @returns the annotated model and a note describing anything that went wrong.
+ */
+async function annotate(ctx: Context, model: ReportModel, config: SuiteConfig, signal: AbortSignal): Promise<{ model: ReportModel; note: string }> {
+  const route = config.report?.narrative
+  if (route === undefined) return { model, note: '' }
+  const llm = ctx.get('llm') as unknown as NarrativeLlm | undefined
+  if (llm === undefined) return { model, note: ' Model interpretation was requested but no llm service is mounted.' }
+  try {
+    const reply = await llmNarrativeWriter(llm, route)({ system: NARRATIVE_SYSTEM, prompt: buildNarrativePrompt(model), signal })
+    return { model: applyNarrative(model, parseRunNarrative(reply)), note: '' }
+  } catch (error: unknown) {
+    return { model, note: ' Model interpretation failed: ' + (error instanceof Error ? error.message : String(error)) }
+  }
+}
+
+async function execute(invocation: CommandInvocation, ctx: Context): Promise<CommandResult> {
   const argument = invocation.rawInput.trim()
   if (argument === 'auto') {
     const directory = invocation.agent.session.header.cwd ?? process.cwd()
@@ -169,6 +197,8 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
       return { kind: 'error', text: `test history could not be updated: ${error instanceof Error ? error.message : String(error)}` }
     }
   }
+  const annotated = await annotate(ctx, model, config, invocation.signal)
+  model = annotated.model
   const document = renderReport(model)
   try {
     await mkdir(dirname(outputPath), { recursive: true })
@@ -182,7 +212,7 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
   const retriedCount = model.tests.filter(test => test.kind === 'test' && (test.attempts ?? 1) > 1).length
   const unstable = retriedCount === 0 ? '' : ` ${retriedCount} passed only on retry.`
   const findingLine = openFindings.length === 0 ? '' : ` ${openFindings.length} scan finding(s) need review, not tests.`
-  const headline = `${model.summary.passed}/${model.summary.total} tests passed.${unstable}${findingLine} Report: ${outputPath}`
+  const headline = `${model.summary.passed}/${model.summary.total} tests passed.${unstable}${findingLine} Report: ${outputPath}${annotated.note}`
   const detail = failedTests.length === 0
     ? ''
     : `\nFailed: ${failedTests.map(test => test.name).join(', ')}`

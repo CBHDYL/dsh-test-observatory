@@ -221,6 +221,13 @@ export interface CheckFinding {
      * when the producer reported no target, which is stated rather than guessed.
      */
     readonly evidence?: readonly FindingEvidence[];
+    /**
+     * What this finding means for a user, written by the configured model from
+     * the recorded evidence. Absent when the run had no model route.
+     */
+    readonly interpretation?: string;
+    /** What to change or inspect, written by the same model call. */
+    readonly nextAction?: string;
 }
 /** One element a finding points at, and where it was measured. */
 export interface FindingEvidence {
@@ -341,8 +348,14 @@ export interface Verdict {
     readonly summary: string;
     /** Confidence statement, such as a percentage. */
     readonly confidence: string;
-    /** AI risk summary sentence. */
+    /** One factual sentence about the run, always present. */
     readonly risk: string;
+    /**
+     * Model-written summary of the same facts. Absent unless the run configured a
+     * model route, so a reader can tell an interpretation from the report's own
+     * verdict.
+     */
+    readonly narrative?: string;
 }
 /** One headline metric card. */
 export interface Kpi {
