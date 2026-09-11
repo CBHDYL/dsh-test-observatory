@@ -44,12 +44,12 @@ describe('accessibility scan mapping', () => {
   it('maps each axe violation to a rule id, severity and node count', async () => {
     const page = evaluatingPage({
       violations: [
-        { id: 'image-alt', impact: 'critical', help: 'Images must have alternative text', nodes: [{}, {}, {}] },
-        { id: 'region', impact: 'moderate', help: 'All content should be in a landmark', nodes: [{}] },
+        { id: 'image-alt', impact: 'critical', help: 'Images must have alternative text', nodes: [{ target: ['#a'] }, { target: ['#b'] }, { target: ['#c'] }] },
+        { id: 'region', impact: 'moderate', help: 'All content should be in a landmark', nodes: [{ target: [['main', 'div']] }] },
       ],
     })
     const findings = await checkAccessibility(page as never)
-    expect(findings).toEqual([
+    expect(findings.map(finding => ({ rule: finding.rule, detail: finding.detail, severity: finding.severity }))).toEqual([
       { rule: 'axe:image-alt', detail: 'Images must have alternative text (3 node(s))', severity: 'high' },
       { rule: 'axe:region', detail: 'All content should be in a landmark (1 node(s))', severity: 'medium' },
     ])

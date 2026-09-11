@@ -52,14 +52,16 @@ describe('accessibility scan', () => {
   })
 
   it('maps a blocking axe impact to a high severity finding', async () => {
-    const page = fakePage({ violations: [{ id: 'image-alt', impact: 'critical', help: 'Images must have alternative text', nodes: 3 }] })
+    const page = fakePage({ violations: [{ id: 'image-alt', impact: 'critical', help: 'Images must have alternative text', nodes: [{ target: ['#logo'] }, { target: ['#icon'] }, { target: ['#badge'] }] }] })
     const findings = await checkAccessibility(page as never)
     expect(findings[0]).toMatchObject({ rule: 'axe:image-alt', severity: 'high' })
     expect(findings[0]?.detail).toContain('3 node(s)')
+    // The axe node targets survive, so a finding can be marked on a screenshot.
+    expect(findings[0]?.evidence.map(entry => entry.element.selector)).toEqual(['#logo', '#icon', '#badge'])
   })
 
   it('maps a null impact to a non-blocking finding', async () => {
-    const page = fakePage({ violations: [{ id: 'region', impact: null, help: 'All content should be in a landmark', nodes: 1 }] })
+    const page = fakePage({ violations: [{ id: 'region', impact: null, help: 'All content should be in a landmark', nodes: [{ target: ['main'] }] }] })
     const findings = await checkAccessibility(page as never)
     expect(findings[0]?.severity).toBe('medium')
   })

@@ -46,18 +46,20 @@ describe('checkVisual', () => {
 describe('checkAccessibility', () => {
   it('maps axe violations onto the report vocabulary', async () => {
     const results = await checkAccessibility(pageResolving([
-      { id: 'color-contrast', impact: 'serious', help: 'Elements must meet contrast', nodes: 3 },
-      { id: 'region', impact: 'moderate', help: 'All content should be in landmarks', nodes: 1 },
+      { id: 'color-contrast', impact: 'serious', help: 'Elements must meet contrast', nodes: [{ target: ['#a'] }, { target: ['#b'] }, { target: ['#c'] }] },
+      { id: 'region', impact: 'moderate', help: 'All content should be in landmarks', nodes: [{ target: ['main'] }] },
     ]) as never)
-    expect(results).toEqual([
+    expect(results.map(finding => ({ rule: finding.rule, detail: finding.detail, severity: finding.severity }))).toEqual([
       { rule: 'axe:color-contrast', detail: 'Elements must meet contrast (3 node(s))', severity: 'high' },
       { rule: 'axe:region', detail: 'All content should be in landmarks (1 node(s))', severity: 'medium' },
     ])
+    // axe's own node targets are kept so the region can be marked on a screenshot.
+    expect(results[0]?.evidence.map(entry => entry.element.selector)).toEqual(['#a', '#b', '#c'])
   })
 
   it('treats an unknown impact as non-blocking', async () => {
     const results = await checkAccessibility(pageResolving([
-      { id: 'best-practice', impact: null, help: 'Consider this', nodes: 2 },
+      { id: 'best-practice', impact: null, help: 'Consider this', nodes: [{ target: ['#x'] }, { target: ['#y'] }] },
     ]) as never)
     expect(results[0]?.severity).toBe('medium')
   })
