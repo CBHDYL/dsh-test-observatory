@@ -14,6 +14,7 @@
  */
 import type { Page } from 'playwright-core'
 import type { ElementBox, ElementEvidence, ElementRef } from './geometry.ts'
+import { ensurePageHelpers } from './in-page.ts'
 
 /** One visual violation. */
 export interface VisualViolation {
@@ -170,6 +171,9 @@ export async function checkVisual(page: Page): Promise<readonly VisualViolation[
   const evaluator = page as unknown as {
     evaluate: (expression: string) => Promise<VisualViolation[]>
   }
+  // The serialized source may reference a bundled helper, which only exists once
+  // it has been defined in the page.
+  await ensurePageHelpers(page)
   const expression = '(' + collectViolations.toString() + ')(document)'
   return evaluator.evaluate(expression)
 }

@@ -11,6 +11,7 @@
  */
 import type { Page } from 'playwright-core'
 import type { ElementBox, ElementEvidence, ElementRef } from './geometry.ts'
+import { drawsFocusIndicatorSource, ensurePageHelpers } from './in-page.ts'
 import type { VisualViolation } from './visual.ts'
 
 /** Elements examined for a visible focus indicator, so one huge page stays bounded. */
@@ -40,8 +41,11 @@ export async function checkKeyboard(page: Page): Promise<readonly VisualViolatio
   const evaluator = page as unknown as {
     evaluate: (expression: unknown, arg?: unknown) => Promise<readonly VisualViolation[]>
   }
-  // Serialized into the page: the inspection closes over nothing.
-  const inspect = (config: { reachable: string; maxSamples: number; textLimit: number }): VisualViolation[] => {
+  // The serialized source may reference a bundled helper, which only exists once
+  // it has been defined in the page.
+  const inspect = (config: { reachable: string; maxSamples: number; textLimit: number; drawsFocusSource: string }): VisualViolation[] => {
+    // Rebuilt from source: a function value cannot cross into the page.
+    const drawsFocus = new Function('return ' + config.drawsFocusSource)() as (style: CSSStyleDeclaration) => boolean
     const found: VisualViolation[] = []
     const elementInfo = (element: Element): ElementEvidence => {
       const rect = element.getBoundingClientRect()
@@ -54,27 +58,6 @@ export async function checkKeyboard(page: Page): Promise<readonly VisualViolatio
       }
       return { element: ref, box }
     }
-    const isTransparent = (color: string): boolean => {
-      const value = color.trim().toLowerCase()
-      if (value === '' || value === 'transparent') return true
-      const match = /^rgba?\(([^)]+)\)$/.exec(value)
-      if (match === null) return false
-      const parts = match[1]!.split(/[\s,\/]+/).filter(part => part !== '')
-      if (parts.length < 4) return false
-      const alpha = Number.parseFloat(parts[3]!)
-      return Number.isFinite(alpha) && alpha === 0
-    }
-    const drawsFocus = (element: Element): boolean => {
-      const style = window.getComputedStyle(element)
-      const width = Number.parseFloat(style.outlineWidth === '' ? '0' : style.outlineWidth)
-      const shorthand = style.outline === '' ? '' : style.outline
-      const shorthandDrawn = shorthand !== ''
-        && !shorthand.startsWith('none')
-        && !shorthand.split(/\s+/).some(part => isTransparent(part))
-      const longhandDrawn = style.outlineStyle !== 'none' && width > 0 && !isTransparent(style.outlineColor)
-      return shorthandDrawn || longhandDrawn || (style.boxShadow !== '' && style.boxShadow !== 'none')
-    }
-
     // An element is only reachable if it is actually rendered. Style is the
     // signal rather than geometry, because a zero-sized element is exactly the
     // condition this check exists to catch.
@@ -95,7 +78,7 @@ export async function checkKeyboard(page: Page): Promise<readonly VisualViolatio
       const focusable = candidate as HTMLElement
       focusable.focus()
       if (document.activeElement !== focusable) continue
-      if (!drawsFocus(focusable)) withoutIndicator.push(candidate)
+      if (!drawsFocus(window.getComputedStyle(focusable))) withoutIndicator.push(candidate)
     }
     if (withoutIndicator.length > 0) {
       found.push({
@@ -117,7 +100,10 @@ export async function checkKeyboard(page: Page): Promise<readonly VisualViolatio
     })
     return found
   }
-  return await evaluator.evaluate(inspect, { reachable: REACHABLE, maxSamples: MAX_FOCUS_SAMPLES, textLimit: TEXT_LIMIT })
+  await ensurePageHelpers(page)
+  // The focus judgement travels as source text, so the page runs the same logic
+  // the unit tests exercise rather than a second copy of it.
+  return await evaluator.evaluate(inspect, { reachable: REACHABLE, maxSamples: MAX_FOCUS_SAMPLES, textLimit: TEXT_LIMIT, drawsFocusSource: drawsFocusIndicatorSource() })
 }
 
 /**
