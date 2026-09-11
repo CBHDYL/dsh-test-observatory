@@ -46,7 +46,26 @@ function requireString(record: Record<string, unknown>, key: string, where: stri
 }
 
 /**
- * Read an optional positive integer field.
+ * Read an optional integer field that must be zero or greater. Used for values
+ * where zero is meaningful, such as an expected exit code.
+ * @param record - the mapping holding the field.
+ * @param key - the field name.
+ * @param where - the position description used in the error.
+ * @returns the value, or undefined when absent.
+ */
+function optionalNonNegativeInt(record: Record<string, unknown>, key: string, where: string): number | undefined {
+  const value = record[key]
+  if (value === undefined) return undefined
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new SuiteConfigError(`${where}: "${key}" must be a non-negative integer`)
+  }
+  return value
+}
+
+/**
+ * Read an optional integer field that must be greater than zero. A zero timeout,
+ * viewport dimension or wait duration cannot express the intent the field names,
+ * so it is rejected rather than silently accepted.
  * @param record - the mapping holding the field.
  * @param key - the field name.
  * @param where - the position description used in the error.
@@ -55,8 +74,8 @@ function requireString(record: Record<string, unknown>, key: string, where: stri
 function optionalPositiveInt(record: Record<string, unknown>, key: string, where: string): number | undefined {
   const value = record[key]
   if (value === undefined) return undefined
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-    throw new SuiteConfigError(`${where}: "${key}" must be a non-negative integer`)
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    throw new SuiteConfigError(`${where}: "${key}" must be a positive integer`)
   }
   return value
 }
@@ -73,7 +92,7 @@ function toCase(raw: unknown, index: number): SuiteCase {
   if (record === null) throw new SuiteConfigError(`${where}: must be a mapping`)
   const name = requireString(record, 'name', where)
   const command = requireString(record, 'command', where)
-  const expectedExitCode = optionalPositiveInt(record, 'expectedExitCode', where)
+  const expectedExitCode = optionalNonNegativeInt(record, 'expectedExitCode', where)
   const timeoutMs = optionalPositiveInt(record, 'timeoutMs', where)
   const suite = record['suite']
   const owner = record['owner']
