@@ -13,8 +13,22 @@ function box(element: Element, left: number, top: number, width: number, height:
   }) as DOMRect
 }
 
+/**
+ * Pin the viewport the rule measures against. The default differs between the
+ * jsdom builds this package is tested on, so a case that relied on it would
+ * pass in one workspace and fail in the other.
+ */
+function viewport(width: number, height: number): void {
+  Object.defineProperty(window, 'innerWidth', { value: width, configurable: true })
+  Object.defineProperty(window, 'innerHeight', { value: height, configurable: true })
+  // The computed style is the rule's other environment input; the jsdom builds
+  // this package is tested on do not agree on it for an element with no CSS.
+  window.getComputedStyle = (() => ({ display: 'block', visibility: 'visible', opacity: '1' })) as unknown as typeof window.getComputedStyle
+}
+
 /** Build a body with one wide wrapper and one dense panel inside it. */
 function page(): { wrapper: HTMLElement; panel: HTMLElement } {
+  viewport(1440, 900)
   document.body.innerHTML = ''
   const wrapper = document.createElement('div')
   wrapper.innerHTML = '<main><section id="panel"><p>' + 'content '.repeat(40) + '</p></section><aside>tiny</aside></main>'

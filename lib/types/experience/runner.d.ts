@@ -8,6 +8,9 @@
 import { type Browser } from 'playwright-core';
 import type { ExperienceRun, JourneySpec } from './types.ts';
 import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT } from './capture.ts';
+import type { Decide } from './agent.ts';
+/** Captures one agent-driven journey may add, so a long run cannot fill the report. */
+export declare const MAX_AGENT_SHOTS = 8;
 /** Deadline for the best-effort wait before page checks run. */
 export declare const SETTLE_TIMEOUT_MS = 20000;
 /** Default settle time for a `wait` action that names no selector. */
@@ -65,6 +68,12 @@ export interface RunOptions {
      * with any later capture (default none).
      */
     readonly masks?: readonly string[];
+    /**
+     * Decision function for a journey that declares a goal. Absent leaves a
+     * goal-driven journey unrun and reported as such, rather than silently
+     * treating it as a scripted one with no steps.
+     */
+    readonly agentDecide?: Decide;
 }
 /**
  * Drive every declared journey in a real browser and collect the evidence.

@@ -17,6 +17,7 @@ import { toExperienceSection } from './experience.ts'
 import { describeDetection, detectProject } from './detect.ts'
 import { readStructuredResult } from './structured.ts'
 import { NARRATIVE_SYSTEM, applyNarrative, buildNarrativePrompt, llmNarrativeWriter, parseRunNarrative } from './narrative.ts'
+import { llmDecide } from '../experience/agent.ts'
 import type { NarrativeLlm } from './narrative.ts'
 import type { ReportModel } from '../report/types.ts'
 import type { SuiteConfig } from './types.ts'
@@ -100,10 +101,22 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
     outcomes.push(await runCase(testCase, invocation.signal, workspace))
   }
 
+  // One decision function for every goal-driven journey in this run.
+  const agentRoute = config.report?.narrative
+  const agentLlm = ctx.get('llm') as unknown as NarrativeLlm | undefined
+  const agentDecide = agentRoute === undefined || agentLlm === undefined ? undefined : llmDecide(agentLlm, agentRoute)
+
   const outputPath = resolve(workspace, config.report?.outputPath ?? 'test-observatory-report.html')
   const experienceSection = config.journeys === undefined
     ? undefined
-    : toExperienceSection(await runExperience({ journeys: config.journeys, signal: invocation.signal }))
+    : toExperienceSection(await runExperience({
+      journeys: config.journeys,
+      signal: invocation.signal,
+      // A journey that declares a goal is driven by the agent, which needs the
+      // same model route the narrative uses. Without one, the journey reports
+      // that it could not run rather than passing vacuously.
+      ...(agentDecide === undefined ? {} : { agentDecide }),
+    }))
   const structuredTests = []
   const snapshotCounts = []
   for (const outcome of outcomes) {

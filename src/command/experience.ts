@@ -94,12 +94,16 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
   const journeys: Journey[] = run.journeys.map(journey => ({
     personaId: personaId(journey.persona),
     name: journey.name,
-    steps: journey.steps.map(step => ({
+    steps: journey.steps.map((step, index) => ({
       label: step.label,
       state: step.state,
       seconds: step.state === 'BLOCKED' ? null : Math.round(step.durationMs / 10) / 100,
+      ...(step.error === undefined ? {} : { error: step.error }),
       ...(step.evidenceIds === undefined ? {} : { evidenceIds: step.evidenceIds }),
+      ...(journey.trace?.[index] === undefined ? {} : { reasoning: journey.trace[index].reasoning, result: journey.trace[index].result, changed: journey.trace[index].changed }),
     })),
+    ...(journey.stopReason === undefined ? {} : { stopReason: journey.stopReason }),
+    ...(journey.obstacles === undefined ? {} : { obstacles: journey.obstacles }),
   }))
   // Two journeys that open the same page capture the same bytes; the report
   // must say so rather than present one observation as several.

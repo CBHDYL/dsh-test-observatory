@@ -14,8 +14,13 @@ import { checkKeyboard, probeOpenDialog } from './keyboard-checks.ts'
 import { applyEnvironment } from './behavior/environment.ts'
 import { behaviorDimensions, resolveBehavior } from './behavior/index.ts'
 import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT, captureElement, captureEvidence, captureFindingCrops, captureFocused } from './capture.ts'
+import { runAgent } from './agent.ts'
+import type { AgentRun, Decide } from './agent.ts'
 import type { Annotation } from './annotate.ts'
 import { checkVisual } from './visual.ts'
+
+/** Captures one agent-driven journey may add, so a long run cannot fill the report. */
+export const MAX_AGENT_SHOTS = 8
 
 /** Deadline for the best-effort wait before page checks run. */
 export const SETTLE_TIMEOUT_MS = 20000
@@ -146,6 +151,90 @@ async function runAction(
 }
 
 /**
+ * Drive one goal-driven journey with the agent and turn its run into a journey
+ * outcome. The steps list carries one entry per turn so the report's rail shows
+ * what the agent did; the trace and the obstacles carry why.
+ * @param page - the page to operate.
+ * @param spec - the declared journey, which supplies the goal.
+ * @param decide - the decision function, absent when no model route is configured.
+ * @param capture - records one screenshot and returns its evidence id.
+ * @param behavior - the resolved persona policy.
+ * @param appliedEnvironment - the conditions the browser actually emulated.
+ * @returns the settled journey.
+ */
+async function runGoalJourney(
+  page: Page,
+  spec: JourneySpec,
+  decide: Decide | undefined,
+  capture: (caption: string, category: CapturedShot['category'], selector?: string) => Promise<string | undefined>,
+  behavior: PersonaBehavior,
+  appliedEnvironment: readonly string[],
+): Promise<JourneyOutcome> {
+  const base = {
+    persona: spec.persona,
+    device: spec.device,
+    name: spec.name,
+    behavior,
+    behaviorDimensions: behaviorDimensions(behavior),
+    ...(appliedEnvironment.length === 0 ? {} : { appliedEnvironment }),
+  }
+  // A goal has no goto step, so the journey is put where the user starts before
+  // the agent looks at anything.
+  if (spec.start !== undefined) {
+    try {
+      await page.goto(spec.start, { timeout: 30_000 })
+    } catch (error: unknown) {
+      return {
+        ...base,
+        steps: [{ label: 'start', state: 'BLOCKED', durationMs: 0, error: 'the journey could not open ' + spec.start + ': ' + (error instanceof Error ? error.message : String(error)) }],
+        passed: false,
+        trace: [],
+        obstacles: [],
+        stopReason: 'error',
+      }
+    }
+  }
+  if (decide === undefined) {
+    return {
+      ...base,
+      steps: [{ label: 'agent', state: 'BLOCKED', durationMs: 0, error: 'the journey declares a goal but no model route is configured, so no agent could run it' }],
+      passed: false,
+      trace: [],
+      obstacles: [],
+      stopReason: 'error',
+    }
+  }
+  const started = Date.now()
+  let shots = 0
+  const run: AgentRun = await runAgent(page, spec.goal ?? '', decide, {
+    ...(spec.budget === undefined ? {} : { budget: spec.budget }),
+    onTurn: async () => {
+      // One capture per turn, bounded, so the rail shows the path the agent took.
+      if (shots >= MAX_AGENT_SHOTS) return
+      shots += 1
+      await capture('turn ' + String(shots) + ': ' + spec.goal, shots === 1 ? 'key' : 'final')
+    },
+  })
+  const steps: StepOutcome[] = run.trace.map((entry) => {
+    // Reaching the goal is a pass even though it changes nothing, and an
+    // obstacle is a failure even though the agent acted correctly in reporting it.
+    const state: StepOutcome['state'] = entry.action === 'finish the journey'
+      ? 'PASS'
+      : entry.action === 'report an obstacle' ? 'FAIL' : entry.changed ? 'PASS' : 'FAIL'
+    return { label: entry.action, state, durationMs: 0, ...(state === 'PASS' ? {} : { error: entry.result }) }
+  })
+  return {
+    ...base,
+    steps,
+    passed: run.reached,
+    trace: run.trace,
+    obstacles: run.obstacles,
+    stopReason: run.stopReason,
+    ...(run.trace.length === 0 ? {} : { settledMs: Date.now() - started }),
+  }
+}
+
+/**
  * Execute one declared journey and settle every step.
  * @param page - the page to drive.
  * @param spec - the declared journey.
@@ -165,7 +254,7 @@ async function runJourney(
 ): Promise<JourneyOutcome> {
   const steps: StepOutcome[] = []
   let blocked = false
-  for (const step of spec.steps) {
+  for (const step of spec.steps ?? []) {
     setActiveStep(step.label)
     if (blocked) {
       steps.push({ label: step.label, state: 'BLOCKED', durationMs: 0, evidenceIds: [] })
@@ -279,6 +368,12 @@ export interface RunOptions {
    * with any later capture (default none).
    */
   readonly masks?: readonly string[]
+  /**
+   * Decision function for a journey that declares a goal. Absent leaves a
+   * goal-driven journey unrun and reported as such, rather than silently
+   * treating it as a scripted one with no steps.
+   */
+  readonly agentDecide?: Decide
 }
 
 /**
@@ -332,7 +427,9 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
       }
       let journey: JourneyOutcome
       try {
-        journey = await runJourney(page, spec, async (caption, category, selector) => capture(caption, category, selector), retries, settleTimeoutMs, (label) => { activeStepLabel = label }, behavior, environment.applied)
+        journey = spec.goal !== undefined
+          ? await runGoalJourney(page, spec, options.agentDecide, async (caption, category, selector) => capture(caption, category, selector), behavior, environment.applied)
+          : await runJourney(page, spec, async (caption, category, selector) => capture(caption, category, selector), retries, settleTimeoutMs, (label) => { activeStepLabel = label }, behavior, environment.applied)
       } finally {
         await environment.restore()
       }

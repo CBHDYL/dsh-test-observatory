@@ -218,9 +218,27 @@ function toJourney(raw: unknown, index: number): JourneySpec {
   if (typeof device !== 'string' || device.trim().length === 0) {
     throw new SuiteConfigError(`${where}: "device" must be a non-empty string`)
   }
+  const goal = record['goal']
+  if (goal !== undefined && (typeof goal !== 'string' || goal.trim().length === 0)) {
+    throw new SuiteConfigError(`${where}.goal: must be a non-empty string`)
+  }
+  const budget = optionalPositiveInt(record, 'budget', where)
+  const start = record['start']
+  if (start !== undefined && (typeof start !== 'string' || start.trim().length === 0)) {
+    throw new SuiteConfigError(`${where}.start: must be a non-empty URL`)
+  }
+  if (goal !== undefined && start === undefined) {
+    throw new SuiteConfigError(`${where}.start: a journey with a "goal" must declare where the user starts`)
+  }
   const rawSteps = record['steps']
-  if (!Array.isArray(rawSteps) || rawSteps.length === 0) {
-    throw new SuiteConfigError(`${where}: "steps" must be a non-empty list`)
+  if (goal !== undefined && rawSteps !== undefined) {
+    throw new SuiteConfigError(`${where}: declare either "steps" or "goal", not both`)
+  }
+  if (goal === undefined && (!Array.isArray(rawSteps) || rawSteps.length === 0)) {
+    throw new SuiteConfigError(`${where}: "steps" must be a non-empty list, or the journey must declare a "goal"`)
+  }
+  if (budget !== undefined && goal === undefined) {
+    throw new SuiteConfigError(`${where}.budget: only an agent-driven journey with a "goal" takes a budget`)
   }
   const behavior = record['behavior']
   const declared = behavior === undefined ? undefined : toBehavior(behavior, where)
@@ -240,7 +258,10 @@ function toJourney(raw: unknown, index: number): JourneySpec {
     device,
     ...(declared === undefined ? {} : { behavior: declared }),
     ...(viewport === undefined ? {} : { viewport: viewport as { width: number; height: number } }),
-    steps: rawSteps.map((entry, stepIndex) => toStep(entry, `${where}.steps[${stepIndex}]`)),
+...(goal === undefined ? {} : { goal }),
+    ...(start === undefined ? {} : { start }),
+    ...(budget === undefined ? {} : { budget }),
+    ...(Array.isArray(rawSteps) ? { steps: rawSteps.map((entry, stepIndex) => toStep(entry, `${where}.steps[${stepIndex}]`)) } : {}),
   }
 }
 
@@ -250,7 +271,10 @@ function toJourney(raw: unknown, index: number): JourneySpec {
  * @param where - the position description used in the error.
  * @returns the validated step.
  */
-function toStep(raw: unknown, where: string): JourneySpec['steps'][number] {
+/** The scripted step type, named once so a goal-driven journey can omit it. */
+type JourneyStep = NonNullable<JourneySpec['steps']>[number]
+
+function toStep(raw: unknown, where: string): JourneyStep {
   const record = asRecord(raw)
   if (record === null) throw new SuiteConfigError(`${where}: must be a mapping`)
   const label = requireString(record, 'label', where)
@@ -272,7 +296,7 @@ function toStep(raw: unknown, where: string): JourneySpec['steps'][number] {
  * @param where - the position description used in the error.
  * @returns the validated action.
  */
-function toAction(raw: unknown, where: string): JourneySpec['steps'][number]['actions'][number] {
+function toAction(raw: unknown, where: string): JourneyStep['actions'][number] {
   const record = asRecord(raw)
   if (record === null) throw new SuiteConfigError(`${where}: must be a mapping`)
   const kind = record['kind']

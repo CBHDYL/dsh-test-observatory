@@ -170,6 +170,25 @@ export interface JourneyStep {
 }
 
 /** One simulated task performed by a persona. */
+export interface JourneyStep {
+  /** Step label or the agent action taken. */
+  readonly label: string
+  /** Settled state. */
+  readonly state: 'PASS' | 'FAIL' | 'BLOCKED'
+  /** Observed duration in seconds, or null when the step never ran. */
+  readonly seconds: number | null
+  /** Failure explanation, absent when the step passed. */
+  readonly error?: string
+  /** Captures recorded during this step. */
+  readonly evidenceIds?: readonly string[]
+  /** What the agent said it was doing, for an agent-driven journey. */
+  readonly reasoning?: string
+  /** What the action produced. */
+  readonly result?: string
+  /** Whether the action changed the page. */
+  readonly changed?: boolean
+}
+
 export interface Journey {
   /** Persona id this journey belongs to. */
   readonly personaId: string

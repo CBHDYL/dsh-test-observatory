@@ -39,6 +39,8 @@ export interface JourneyStepSpec {
 }
 
 /** One persona's declared task. */
+import type { AgentRun, TraceEntry } from './agent.ts'
+
 export interface JourneySpec {
   /** Persona display name, also the report's persona label. */
   readonly persona: string
@@ -48,8 +50,25 @@ export interface JourneySpec {
   readonly name: string
   /** Viewport this journey runs in. */
   readonly viewport?: { readonly width: number; readonly height: number }
-  /** Ordered steps. */
-  readonly steps: readonly JourneyStepSpec[]
+  /**
+   * Ordered steps. Present only for a scripted journey; a journey with a goal
+   * is driven by the agent instead, and the two are mutually exclusive.
+   */
+  readonly steps?: readonly JourneyStepSpec[]
+  /**
+   * What the user is trying to achieve. The agent decides the actions, so the
+   * run can report where it hesitated instead of only whether a written path
+   * still works.
+   */
+  readonly goal?: string
+  /** Turns the agent may take before the run stops. */
+  readonly budget?: number
+  /**
+   * Where a goal-driven journey starts. A written journey opens its own pages
+   * through goto steps; a goal has none, so the run must be told where the user
+   * begins.
+   */
+  readonly start?: string
   /**
    * The policy this persona runs under. A preset id, or a preset plus overrides;
    * absent means the neutral policy, which is the behaviour an undeclared
@@ -122,6 +141,12 @@ export interface JourneyOutcome {
   readonly behaviorDimensions: readonly string[]
   /** Conditions the browser actually emulated, when any were applied. */
   readonly appliedEnvironment?: readonly string[]
+  /** Every turn of an agent-driven journey, in order. */
+  readonly trace?: readonly TraceEntry[]
+  /** What the agent expected and could not find. */
+  readonly obstacles?: readonly string[]
+  /** Why an agent-driven journey stopped. */
+  readonly stopReason?: AgentRun['stopReason']
 }
 
 /** One check finding recorded against a journey. */
