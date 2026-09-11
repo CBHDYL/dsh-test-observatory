@@ -327,7 +327,7 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
       }
       let journey: JourneyOutcome
       try {
-        journey = await runJourney(page, spec, async (caption, category) => capture(caption, category), retries, settleTimeoutMs, label => { activeStepLabel = label }, behavior, environment.applied)
+        journey = await runJourney(page, spec, async (caption, category) => capture(caption, category), retries, settleTimeoutMs, (label) => { activeStepLabel = label }, behavior, environment.applied)
       } finally {
         await environment.restore()
       }

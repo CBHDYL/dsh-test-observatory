@@ -13,18 +13,18 @@ describe('parseStructuredResult', () => {
     const rows = await parseStructuredResult({ format: 'pytest', path }, base, root)
     expect(rows[0]?.path).toBe('a.py')
     const nested=await artifact('nested.xml','<testsuite><testcase name="deep" classname="pkg.sub.module_test" time="0.1"/></testsuite>')
-    const nestedRows=await parseStructuredResult({format:'pytest',path:nested},base,root)
+    const nestedRows=await parseStructuredResult({ format:'pytest',path:nested },base,root)
     expect(nestedRows[0]?.path).toBe('pkg/sub/module_test.py')
     const classBased=await artifact('classbased.xml','<testsuite><testcase name="t1" classname="tests.test_foo.TestBar" time="0.1"/><testcase name="t2" classname="unit" time="0.1"/><testcase name="t3" classname="tests.test_foo" time="0.1"/></testsuite>')
-    const classRows=await parseStructuredResult({format:'pytest',path:classBased},base,root)
+    const classRows=await parseStructuredResult({ format:'pytest',path:classBased },base,root)
     expect(classRows[0]?.path).toBe('tests/test_foo.py')
     expect(classRows[1]?.path).toBe(classBased)
     expect(classRows[2]?.path).toBe('tests/test_foo.py')
     expect(rows.map(row => [row.name, row.status])).toEqual([['passes','passed'],['fails','failed'],['skip','skipped']])
     expect(rows[1]?.error).toBe('expected 2')
     const selfClosing=await artifact('selfclosing.xml','<testsuite><testcase name="selfclosing"><failure message="assert 1 == 2"/></testcase></testsuite>')
-    const failed=await parseStructuredResult({format:'pytest',path:selfClosing},base,root)
-    expect(failed[0]).toMatchObject({status:'failed',error:'assert 1 == 2'})
+    const failed=await parseStructuredResult({ format:'pytest',path:selfClosing },base,root)
+    expect(failed[0]).toMatchObject({ status:'failed',error:'assert 1 == 2' })
   })
 
   it('parses Jest and Vitest assertion results', async () => {
@@ -36,15 +36,15 @@ describe('parseStructuredResult', () => {
   })
 
   it('parses API observations and performance thresholds', async () => {
-    const apiPath=await artifact('api.json',JSON.stringify({results:[{name:'health',method:'GET',url:'/health',expectedStatus:200,status:503,durationMs:25}]}))
-    const api=await parseStructuredResult({format:'api',path:apiPath},base,root)
-    expect(api[0]).toMatchObject({status:'failed',api:{method:'GET',actualStatus:503,expectedStatus:200}})
-    const perfPath=await artifact('perf.json',JSON.stringify({results:[{name:'latency',metric:'http_req_duration',value:240,unit:'ms',threshold:200,direction:'max',p50:100,p95:220,p99:300,throughput:42}]}))
-    const perf=await parseStructuredResult({format:'performance',path:perfPath},base,root)
-    expect(perf[0]).toMatchObject({status:'failed',performance:{p95:220,throughput:42}})
+    const apiPath=await artifact('api.json',JSON.stringify({ results:[{ name:'health',method:'GET',url:'/health',expectedStatus:200,status:503,durationMs:25 }] }))
+    const api=await parseStructuredResult({ format:'api',path:apiPath },base,root)
+    expect(api[0]).toMatchObject({ status:'failed',api:{ method:'GET',actualStatus:503,expectedStatus:200 } })
+    const perfPath=await artifact('perf.json',JSON.stringify({ results:[{ name:'latency',metric:'http_req_duration',value:240,unit:'ms',threshold:200,direction:'max',p50:100,p95:220,p99:300,throughput:42 }] }))
+    const perf=await parseStructuredResult({ format:'performance',path:perfPath },base,root)
+    expect(perf[0]).toMatchObject({ status:'failed',performance:{ p95:220,throughput:42 } })
   })
 
-  it('rejects artifacts with no recognizable test rows',async()=>{const path=await artifact('empty.json','{}');await expect(parseStructuredResult({format:'jest',path},base,root)).rejects.toThrow(/no recognizable test results/)})
+  it('rejects artifacts with no recognizable test rows',async()=>{const path=await artifact('empty.json','{}');await expect(parseStructuredResult({ format:'jest',path },base,root)).rejects.toThrow(/no recognizable test results/)})
 
   it('parses Playwright attachments and retry count', async () => {
     const path = await artifact('playwright.json', JSON.stringify({ suites: [{ title: 'checkout.spec.ts', specs: [{ title: 'pays', file: '/tests/checkout.spec.ts', ok: false, tests: [{ status: 'unexpected', results: [{ retry: 0, status: 'failed', duration: 40, errors: [{ message: 'timeout' }], attachments: [{ name: 'screenshot', contentType: 'image/png', path: 'shot.png' }, { name: 'trace', contentType: 'application/zip', path: 'trace.zip' }] }, { retry: 1, status: 'passed', duration: 20 }] }] }] }] }))

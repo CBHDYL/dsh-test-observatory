@@ -37,7 +37,7 @@ function parsePlaywright(value: unknown, out: ParsedCase[], inherited = '', inhe
     const finalStatus: TestStatus = states.at(-1) === 'passed' && states.some(state => state === 'failed') ? 'flaky' : status(test['status'] ?? last?.['status'])
     const errors = array(last?.['errors']).map(error => text(record(error)?.['message']) ?? text(error)).filter((error): error is string => error !== undefined)
     const allAttachments = results.flatMap(result => array(result['attachments']))
-    const attachments = allAttachments.flatMap(raw => { const attachment=record(raw); const path=text(attachment?.['path']); if (!path) return []; const contentType=text(attachment?.['contentType']) ?? ''; const kind: TestAttachment['kind']=contentType.startsWith('image/')?'screenshot':contentType.startsWith('video/')?'video':path.endsWith('.zip')?'trace':'other'; return [{ name:text(attachment?.['name']) ?? path.split('/').pop() ?? 'attachment', kind, path }] })
+    const attachments = allAttachments.flatMap((raw) => { const attachment=record(raw); const path=text(attachment?.['path']); if (!path) return []; const contentType=text(attachment?.['contentType']) ?? ''; const kind: TestAttachment['kind']=contentType.startsWith('image/')?'screenshot':contentType.startsWith('video/')?'video':path.endsWith('.zip')?'trace':'other'; return [{ name:text(attachment?.['name']) ?? path.split('/').pop() ?? 'attachment', kind, path }] })
     const duration = (number(last?.['duration']) ?? 0) / 1000
     out.push({ name:title ?? text(test['title']) ?? 'unnamed test', suite:inherited, status:finalStatus, durationSeconds:duration, attempts:Math.max(1, results.length), ...(currentFile ? { path: currentFile } : {}), ...(errors.length ? { error:errors.join('\n') } : {}), ...(attachments.length ? { attachments } : {}) })
   }
@@ -55,7 +55,7 @@ function visit(value: unknown, framework: StructuredResultSpec['format'], out: P
   const errors = [...array(item['errors']), ...array(item['failureMessages'])].map(x => text(record(x)?.['message']) ?? text(x)).filter((x): x is string => x !== undefined)
   const directError = text(item['failureMessage']) ?? text(item['error']) ?? (errors.length === 0 ? undefined : errors.join('\n'))
   const attempts = array(item['results']).length || number(item['retry'])
-  const attachments = array(item['attachments']).flatMap(raw => { const a=record(raw); const path=text(a?.['path']); if(!path)return []; const contentType=text(a?.['contentType'])??''; const kind: TestAttachment['kind']=contentType.startsWith('image/')?'screenshot':contentType.startsWith('video/')?'video':path.endsWith('.zip')?'trace':'other'; return [{name:text(a?.['name'])??path.split('/').pop()??'attachment',kind,path}] })
+  const attachments = array(item['attachments']).flatMap((raw) => { const a=record(raw); const path=text(a?.['path']); if(!path)return []; const contentType=text(a?.['contentType'])??''; const kind: TestAttachment['kind']=contentType.startsWith('image/')?'screenshot':contentType.startsWith('video/')?'video':path.endsWith('.zip')?'trace':'other'; return [{ name:text(a?.['name'])??path.split('/').pop()??'attachment',kind,path }] })
   const childKeys = ['testResults', 'assertionResults', 'suites', 'specs', 'tests', 'results', 'children']
   const children = childKeys.flatMap(key => array(item[key]))
   if (title && state !== undefined && children.length === 0) out.push({ name:title, status:status(state), ...(file ? { path:file } : {}), ...(inherited ? { suite:inherited } : {}), ...(durationMs === undefined ? {} : { durationSeconds:durationMs/1000 }), ...(directError ? { error:directError } : {}), ...(attempts ? { attempts } : {}), ...(attachments.length ? { attachments } : {}) })
@@ -64,23 +64,23 @@ function visit(value: unknown, framework: StructuredResultSpec['format'], out: P
 }
 
 function parseApi(value: unknown): ParsedCase[] {
-  return array(record(value)?.['results'] ?? value).flatMap(raw => {
+  return array(record(value)?.['results'] ?? value).flatMap((raw) => {
     const item=record(raw); if(!item)return []
     const method=text(item['method']) ?? 'GET', url=text(item['url']); const actualStatus=number(item['status']) ?? number(item['actualStatus']); if(!url||actualStatus===undefined)return []
     const expectedStatus=number(item['expectedStatus']), durationMs=number(item['durationMs'])
-    const api: ApiObservation={method,url,actualStatus,...(expectedStatus===undefined?{}:{expectedStatus}),...(durationMs===undefined?{}:{durationMs})}
+    const api: ApiObservation={ method,url,actualStatus,...(expectedStatus===undefined?{}:{ expectedStatus }),...(durationMs===undefined?{}:{ durationMs }) }
     const error=text(item['error'])
-    return [{name:text(item['name']) ?? method+' '+url,path:url,suite:'API',status:error===undefined&&(expectedStatus===undefined||expectedStatus===actualStatus)?'passed':'failed',durationSeconds:(durationMs??0)/1000,api,...(error?{error}:{})}]
+    return [{ name:text(item['name']) ?? method+' '+url,path:url,suite:'API',status:error===undefined&&(expectedStatus===undefined||expectedStatus===actualStatus)?'passed':'failed',durationSeconds:(durationMs??0)/1000,api,...(error?{ error }:{}) }]
   })
 }
 function parsePerformance(value: unknown): ParsedCase[] {
-  return array(record(value)?.['results'] ?? value).flatMap(raw => {
+  return array(record(value)?.['results'] ?? value).flatMap((raw) => {
     const item=record(raw); if(!item)return []
     const metric=text(item['metric']) ?? text(item['name']), measured=number(item['value']); if(!metric||measured===undefined)return []
     const unit=text(item['unit']) ?? 'ms', threshold=number(item['threshold']), direction=item['direction']==='min'?'min' as const:'max' as const
     const passed=threshold===undefined||(direction==='max'?measured<=threshold:measured>=threshold)
-    const performance: PerformanceObservation={metric,value:measured,unit,direction,...(threshold===undefined?{}:{threshold}),...(number(item['p50'])===undefined?{}:{p50:number(item['p50'])!}),...(number(item['p95'])===undefined?{}:{p95:number(item['p95'])!}),...(number(item['p99'])===undefined?{}:{p99:number(item['p99'])!}),...(number(item['throughput'])===undefined?{}:{throughput:number(item['throughput'])!})}
-    return [{name:text(item['name']) ?? metric,path:metric,suite:'Performance',status:passed?'passed':'failed',durationSeconds:0,performance,...(passed?{}:{error:metric+' '+measured+unit+' breached '+direction+' '+threshold+unit})}]
+    const performance: PerformanceObservation={ metric,value:measured,unit,direction,...(threshold===undefined?{}:{ threshold }),...(number(item['p50'])===undefined?{}:{ p50:number(item['p50'])! }),...(number(item['p95'])===undefined?{}:{ p95:number(item['p95'])! }),...(number(item['p99'])===undefined?{}:{ p99:number(item['p99'])! }),...(number(item['throughput'])===undefined?{}:{ throughput:number(item['throughput'])! }) }
+    return [{ name:text(item['name']) ?? metric,path:metric,suite:'Performance',status:passed?'passed':'failed',durationSeconds:0,performance,...(passed?{}:{ error:metric+' '+measured+unit+' breached '+direction+' '+threshold+unit }) }]
   })
 }
 
@@ -125,34 +125,37 @@ export async function readStructuredResult(spec: StructuredResultSpec, testCase:
   const source = await readFile(resolve(cwd, spec.path), 'utf8')
   const parsed: ParsedCase[] = spec.format === 'junit' || spec.format === 'pytest'
     ? parseJUnitDocument(source).map(entry => ({
-        name: entry.name,
-        ...(entry.file === undefined ? {} : { path: entry.file }),
-        ...(entry.classname === undefined ? {} : { suite: entry.classname }),
-        status: entry.status,
-        ...(entry.durationSeconds === undefined ? {} : { durationSeconds: entry.durationSeconds }),
-        ...(entry.error === undefined ? {} : { error: entry.error }),
-        ...(entry.attempts === undefined ? {} : { attempts: entry.attempts }),
-      }))
+      name: entry.name,
+      ...(entry.file === undefined ? {} : { path: entry.file }),
+      ...(entry.classname === undefined ? {} : { suite: entry.classname }),
+      status: entry.status,
+      ...(entry.durationSeconds === undefined ? {} : { durationSeconds: entry.durationSeconds }),
+      ...(entry.error === undefined ? {} : { error: entry.error }),
+      ...(entry.attempts === undefined ? {} : { attempts: entry.attempts }),
+    }))
     : (() => {
-        const value: unknown = JSON.parse(source)
-        if (spec.format === 'api') return parseApi(value)
-        if (spec.format === 'performance') return parsePerformance(value)
-        if (spec.format === 'sarif') return parseSarif(value, cwd).map(finding => ({
-          // A warning and an error both fail: a report that let them pass would
-          // hide the findings the scan exists to surface. Notes are informational.
-          name: finding.rule + (finding.file === undefined ? '' : ' · ' + finding.file + (finding.line === undefined ? '' : ':' + String(finding.line))),
-          path: finding.file ?? finding.rule,
-          suite: 'Static analysis',
-          status: (finding.level === 'error' || finding.level === 'warning' ? 'failed' : 'passed') as TestStatus,
-          ...(finding.level === 'error' || finding.level === 'warning' ? { error: finding.message } : {}),
-        }))
-        const out: ParsedCase[] = []
-        if (spec.format === 'playwright') parsePlaywright(value, out)
-        else visit(value, spec.format, out)
-        return out
-      })()
+      const value: unknown = JSON.parse(source)
+      if (spec.format === 'api') return parseApi(value)
+      if (spec.format === 'performance') return parsePerformance(value)
+      if (spec.format === 'sarif') return parseSarif(value, cwd).map(finding => ({
+        // A warning and an error both fail: a report that let them pass would
+        // hide the findings the scan exists to surface. Notes are informational.
+        name: finding.rule + (finding.file === undefined ? '' : ' · ' + finding.file + (finding.line === undefined ? '' : ':' + String(finding.line))),
+        path: finding.file ?? finding.rule,
+        suite: 'Static analysis',
+        status: (finding.level === 'error' || finding.level === 'warning' ? 'failed' : 'passed') as TestStatus,
+        ...(finding.level === 'error' || finding.level === 'warning' ? { error: finding.message } : {}),
+      }))
+      const out: ParsedCase[] = []
+      if (spec.format === 'playwright') parsePlaywright(value, out)
+      else visit(value, spec.format, out)
+      return out
+    })()
   if (parsed.length === 0) throw new Error(`structured result ${spec.path} contains no recognizable test results`)
-  const tests = parsed.map(item => ({ name:item.name,path:item.path ?? (spec.format === 'pytest' && item.suite ? inferPytestPath(item.suite) ?? spec.path : spec.path),status:item.status,suite:item.suite||testCase.suite||spec.format,durationSeconds:item.durationSeconds??0,owner:testCase.owner??'Unassigned',framework:spec.format,...(item.error?{error:item.error}:{}),...(item.attempts?{attempts:item.attempts}:{}),...(item.attachments?.length?{attachments:item.attachments}:{}),...(item.api?{api:item.api}:{}),...(item.performance?{performance:item.performance}:{}) }))
+  // A SARIF document reports scan findings, not executed tests; the row is
+  // kept for the scan section but must never enter the suite's pass rate.
+  const kind = spec.format === 'sarif' ? 'finding' as const : 'test' as const
+  const tests = parsed.map(item => ({ kind,name:item.name,path:item.path ?? (spec.format === 'pytest' && item.suite ? inferPytestPath(item.suite) ?? spec.path : spec.path),status:item.status,suite:item.suite||testCase.suite||spec.format,durationSeconds:item.durationSeconds??0,owner:testCase.owner??'Unassigned',framework:spec.format,...(item.error?{ error:item.error }:{}),...(item.attempts?{ attempts:item.attempts }:{}),...(item.attachments?.length?{ attachments:item.attachments }:{}),...(item.api?{ api:item.api }:{}),...(item.performance?{ performance:item.performance }:{}) }))
   const snapshots = spec.format === 'jest' || spec.format === 'vitest' ? readSnapshotCounts(JSON.parse(source)) : undefined
   return { tests, ...(snapshots === undefined ? {} : { snapshots }) }
 }

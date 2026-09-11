@@ -115,6 +115,6 @@ export async function startFixtureApp(): Promise<FixtureApp> {
   if (address === null || typeof address === 'string') throw new Error('the fixture server did not report a port')
   return {
     origin: 'http://127.0.0.1:' + String(address.port),
-    close: async () => { await new Promise<void>((resolve, reject) => { server.close(error => { if (error === undefined || error === null) resolve(); else reject(error) }) }) },
+    close: async () => { await new Promise<void>((resolve, reject) => { server.close((error) => { if (error === undefined || error === null) resolve(); else reject(error) }) }) },
   }
 }

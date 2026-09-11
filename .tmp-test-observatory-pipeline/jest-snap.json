@@ -1,1 +1,0 @@
-{"numTotalTests":2,"snapshot":{"added":0,"matched":1,"unmatched":1,"updated":0,"unchecked":2,"total":2,"filesUnmatched":0},"testResults":[{"name":"/src/a.test.ts","assertionResults":[{"fullName":"renders","status":"failed"}]}]}

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { SuiteConfigError, loadSuiteConfig, parseSuiteConfig } from '../src/command/config.ts'
 import { buildReportModel, runCase, truncate, MAX_CAPTURED_CHARS } from '../src/command/runner.ts'
+import type { ReportTest } from '../src/report/types.ts'
 import { describeDetection, detectProject } from '../src/command/detect.ts'
 import { personaId, toExperienceSection } from '../src/command/experience.ts'
 import { DEFAULT_BEHAVIOR } from '../src/experience/behavior/index.ts'
@@ -58,7 +59,7 @@ describe('parseSuiteConfig', () => {
   it('parses structured results and history options', () => {
     const config=parseSuiteConfig(['report:','  historyPath: .reports/history.json','cases:','  - name: Unit','    command: pnpm test','    result:','      format: vitest','      path: reports/vitest.json'].join('\n'))
     expect(config.report?.historyPath).toBe('.reports/history.json')
-    expect(config.cases[0]?.result).toEqual({format:'vitest',path:'reports/vitest.json'})
+    expect(config.cases[0]?.result).toEqual({ format:'vitest',path:'reports/vitest.json' })
     expect(()=>parseSuiteConfig(['cases:','  - name: x','    command: x','    result:','      format: unknown','      path: a'].join('\n'))).toThrow(/result.format/)
     expect(()=>parseSuiteConfig(['report:','  historyPath: true','cases:','  - name: x','    command: x'].join('\n'))).toThrow(/historyPath/)
   })
@@ -362,12 +363,25 @@ describe('buildReportModel', () => {
 
   it('summarizes an all-passing run', () => {
     const model = buildReportModel([outcome('a', true, 100), outcome('b', true, 300)], inputs)
-    expect(model.summary).toEqual({ total: 2, passed: 2, failed: 0, skipped: 0, flaky: 0, durationSeconds: 0.4, coveragePercent: null })
+    expect(model.summary).toEqual({ total: 2, passed: 2, failed: 0, findings: 0, skipped: 0, flaky: 0, durationSeconds: 0.4, coveragePercent: null })
     expect(model.verdict.score).toBe(100)
     expect(model.verdict.label).toBe('Suite passing')
     expect(model.regressions).toEqual([])
     expect(model.trend).toEqual([])
-    expect(model.timeline).toEqual([{label:'a',startSeconds:0,durationSeconds:0.1},{label:'b',startSeconds:0.1,durationSeconds:0.3}])
+    expect(model.timeline).toEqual([{ label:'a',startSeconds:0,durationSeconds:0.1 },{ label:'b',startSeconds:0.1,durationSeconds:0.3 }])
+  })
+
+  it('does not report a scan finding as a failing test', () => {
+    const finding: ReportTest = { kind: 'finding', name: 'PLR0402 · a.py:7', path: 'a.py', status: 'failed', suite: 'Static analysis', durationSeconds: 0, owner: 'Unassigned', framework: 'sarif', error: 'Use `from torch import nn` in lieu of alias' }
+    const executed: ReportTest = { kind: 'test', name: 'a', path: 'true', status: 'passed', suite: 'Suite', durationSeconds: 0.1, owner: 'Unassigned' }
+    const model = buildReportModel([outcome('a', true, 100)], { ...inputs, structuredTests: [executed, finding] })
+    expect(model.summary.failed).toBe(0)
+    expect(model.summary.findings).toBe(1)
+    expect(model.summary.total).toBe(1)
+    expect(model.verdict.score).toBe(100)
+    expect(model.verdict.headline).toContain('Every executed test passed')
+    expect(model.verdict.label).toBe('Suite passing · findings open')
+    expect(model.causes).toEqual([{ label: 'Open scan finding', count: 1 }])
   })
 
   it('summarizes a failing run and ranks the slowest cases', () => {
@@ -380,16 +394,16 @@ describe('buildReportModel', () => {
   })
 
   it('does not claim tests passed when a test failed, even with a perfect experience score', () => {
-    const experienceSection={experience:{total:100,band:'Excellent',tasksObserved:1,tasksCompleted:1,blockers:0,recoverablePoints:0,dimensions:[],visualFindings:0,accessibilityFindings:0},personas:[],journeys:[],evidence:[],findings:[],checks:[]}
-    const model=buildReportModel([outcome('a',true,100),outcome('b',false,100)],{...inputs,experienceSection})
+    const experienceSection={ experience:{ total:100,band:'Excellent',tasksObserved:1,tasksCompleted:1,blockers:0,recoverablePoints:0,dimensions:[],visualFindings:0,accessibilityFindings:0 },personas:[],journeys:[],evidence:[],findings:[],checks:[] }
+    const model=buildReportModel([outcome('a',true,100),outcome('b',false,100)],{ ...inputs,experienceSection })
     expect(model.verdict.headline).not.toContain('Automated tests passed')
     expect(model.verdict.headline).toContain('1 of 2 tests failed')
     expect(model.verdict.label).toBe('Suite failing')
   })
 
   it('reflects experience risk in the executive verdict', () => {
-    const experienceSection={experience:{total:93,band:'Excellent',tasksObserved:1,tasksCompleted:1,blockers:0,recoverablePoints:7,dimensions:[],visualFindings:0,accessibilityFindings:3},personas:[],journeys:[],evidence:[],findings:[],checks:[]}
-    const model=buildReportModel([outcome('a',true,100)],{...inputs,experienceSection})
+    const experienceSection={ experience:{ total:93,band:'Excellent',tasksObserved:1,tasksCompleted:1,blockers:0,recoverablePoints:7,dimensions:[],visualFindings:0,accessibilityFindings:3 },personas:[],journeys:[],evidence:[],findings:[],checks:[] }
+    const model=buildReportModel([outcome('a',true,100)],{ ...inputs,experienceSection })
     expect(model.verdict.score).toBe(93)
     expect(model.verdict.headline).toContain('experience checks scored 93/100')
   })

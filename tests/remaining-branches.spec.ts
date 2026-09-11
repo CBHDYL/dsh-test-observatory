@@ -91,7 +91,7 @@ describe('command run with history enabled', () => {
     const run = mountCommand(directory)
     const first = await run('suite.yml')
     expect(first.kind).toBe('success')
-    expect(first.text).toContain('1/1 passed')
+    expect(first.text).toContain('1/1 tests passed')
     const history = JSON.parse(await readFile(join(directory, 'history.json'), 'utf8')) as { runs: { runId: string }[] }
     expect(history.runs).toHaveLength(1)
     const second = await run('suite.yml')
@@ -104,7 +104,7 @@ describe('command run with history enabled', () => {
     const directory = await scratch()
     await writeFile(join(directory, 'suite.yml'), ['report:', '  historyPath: history.json', 'cases:', '  - name: Always fails', '    command: exit 9', ''].join('\n'))
     const result = await mountCommand(directory)('suite.yml')
-    expect(result.text).toContain('0/1 passed')
+    expect(result.text).toContain('0/1 tests passed')
     expect(result.text).toContain('Failed: Always fails')
   })
 

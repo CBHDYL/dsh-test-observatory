@@ -1,1 +1,0 @@
-<testsuite><testcase name="passes" classname="unit" file="a.py" time="0.2"/><testcase name="fails" classname="unit" time="0.3"><failure><![CDATA[expected 2]]></failure></testcase><testcase name="skip"><skipped/></testcase></testsuite>

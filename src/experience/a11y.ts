@@ -151,7 +151,7 @@ export async function checkAccessibility(page: Page): Promise<readonly VisualVio
   })
   const report = asAxeReport({ violations: results })
   if (report === undefined) throw new Error('axe-core returned no structured violations')
-  return report.violations.map(violation => {
+  return report.violations.map((violation) => {
     const evidence = violation.nodes
       .slice(0, MAX_AXE_NODES)
       .map(evidenceOf)

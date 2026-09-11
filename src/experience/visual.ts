@@ -127,7 +127,7 @@ export function collectViolations(root: Document): VisualViolation[] {
   }
   const viewport = root.defaultView
   const viewportWidth = viewport === null ? 0 : viewport.innerWidth
-  const outside = Array.from(root.querySelectorAll('body *')).filter(element => {
+  const outside = Array.from(root.querySelectorAll('body *')).filter((element) => {
     const box = element.getBoundingClientRect()
     return box.width > 0 && box.right > viewportWidth + 2
   })
@@ -140,7 +140,7 @@ export function collectViolations(root: Document): VisualViolation[] {
       evidence: describeAll(outside, MAX_EVIDENCE),
     })
   }
-  const placeholderOnly = Array.from(root.querySelectorAll('input, textarea')).filter(field => {
+  const placeholderOnly = Array.from(root.querySelectorAll('input, textarea')).filter((field) => {
     const element = field as HTMLInputElement
     const hasLabel = element.labels !== null && element.labels.length > 0
     const hasAria = element.hasAttribute('aria-label') || element.hasAttribute('aria-labelledby')

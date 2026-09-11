@@ -132,7 +132,7 @@ async function captureMasked(page: Page, annotations: readonly Annotation[]): Pr
       }),
     }
   }
-  let overlay = await annotate(page, annotations)
+  const overlay = await annotate(page, annotations)
   if (overlay.drawn.length === 0) {
     // Nothing could be drawn in this coordinate space, so there is no second
     // image to take and no overlay to clean up.

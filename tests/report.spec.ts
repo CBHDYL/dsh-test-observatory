@@ -91,7 +91,7 @@ describe('renderReport', () => {
   })
 
   it('escapes attachment name, kind, and path against injection', () => {
-    const model={...fullModel(),tests:[{name:'<img src=x onerror=alert(1)>',path:'a.ts',status:'failed' as const,suite:'Unit',durationSeconds:1,owner:'Team',attachments:[{name:'"><script>alert(2)</script>',kind:'trace' as const,path:'evil.zip"><script>alert(3)</script>'}]}]}
+    const model={ ...fullModel(),tests:[{ name:'<img src=x onerror=alert(1)>',path:'a.ts',status:'failed' as const,suite:'Unit',durationSeconds:1,owner:'Team',attachments:[{ name:'"><script>alert(2)</script>',kind:'trace' as const,path:'evil.zip"><script>alert(3)</script>' }] }] }
     const html=renderReport(model)
     expect(html).not.toContain('<script>alert(2)</script>')
     expect(html).not.toContain('<script>alert(3)</script>')
@@ -99,12 +99,12 @@ describe('renderReport', () => {
   })
 
   it('offers both the marked and the clean capture, and discloses an unverified one', () => {
-    const model={...fullModel(),evidence:[{
+    const model={ ...fullModel(),evidence:[{
       id:'e1',title:'checkout',personaId:'p',journey:'J',stepLabel:'pay',kind:'key' as const,meta:'Desktop',
       imageDataUri:'data:image/png;base64,CLEAN',
       annotatedImageDataUri:'data:image/png;base64,MARKED',
-      integrityDefects:[{rule:'evidence-overlay-left-behind',detail:'an annotation overlay was still attached'}],
-    }]}
+      integrityDefects:[{ rule:'evidence-overlay-left-behind',detail:'an annotation overlay was still attached' }],
+    }] }
     const html=renderReport(model)
     // Both images reach the report, so a reader can always compare the mark
     // against the page as it actually rendered.
@@ -127,12 +127,14 @@ describe('renderReport', () => {
     expect(html).toContain('Rule-driven, not a user study')
     expect(html).toContain('A green run is only as wide as what ran')
     expect(html).toContain('Flakiness is not decided here')
-    // Printing expands every page rather than the active one.
-    expect(html).toContain('@media print{[data-page]{display:block!important}.pages{display:none}}')
+    // Screen-only hiding keeps every page in the print output, and no rule
+    // forces display, so a page that is itself a grid keeps its columns.
+    expect(html).toContain('@media screen{[data-page]:not(.page-active){display:none}}')
+    expect(html).not.toContain('[data-page].page-active{display:block}')
   })
 
   it('states what the snapshot baselines did, and hides the note when there are none', () => {
-    const withSnapshots = renderReport({...fullModel(), summary: { ...fullModel().summary, snapshots: 'Snapshots: 1 compared, 2 did not match.' }})
+    const withSnapshots = renderReport({ ...fullModel(), summary: { ...fullModel().summary, snapshots: 'Snapshots: 1 compared, 2 did not match.' } })
     expect(withSnapshots).toContain('id="snapshotNote"')
     // The note renders through the client script, which reads the model field.
     expect(withSnapshots).toContain("getElementById('snapshotNote')")
@@ -144,7 +146,7 @@ describe('renderReport', () => {
   })
 
   it('removes empty evidence and findings cards', () => {
-    const model={...fullModel(),evidence:[],findings:[]};const html=renderReport(model);expect(html).not.toContain('id="evidenceGrid"');expect(html).not.toContain('id="findings"')
+    const model={ ...fullModel(),evidence:[],findings:[] };const html=renderReport(model);expect(html).not.toContain('id="evidenceGrid"');expect(html).not.toContain('id="findings"')
   })
 
   it('keeps the experience section when simulation data is present', () => {

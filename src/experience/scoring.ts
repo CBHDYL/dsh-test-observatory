@@ -125,7 +125,7 @@ export function scoreRun(run: ExperienceRun): ExperienceScore {
   // A defect one persona found and three personas saw is one defect.
   const dedupe = (findings: readonly CheckFinding[]): readonly CheckFinding[] => {
     const seen = new Set<string>()
-    return findings.filter(finding => {
+    return findings.filter((finding) => {
       const key = finding.rule + '|' + finding.detail
       if (seen.has(key)) return false
       seen.add(key)

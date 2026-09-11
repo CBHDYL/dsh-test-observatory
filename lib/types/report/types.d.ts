@@ -9,6 +9,12 @@
 export type TestStatus = 'passed' | 'failed' | 'flaky' | 'skipped';
 /** One executed test case, as shown in the report table. */
 export interface ReportTest {
+    /**
+     * What produced this row. Only `test` rows are executed tests and only they
+     * count toward the pass rate; a `finding` is a scan or check result that no
+     * test ran, so reporting one as a failing test misstates the suite.
+     */
+    readonly kind: 'test' | 'finding';
     /** Test case name shown as the row title. */
     readonly name: string;
     /** Repository-relative path or identifier shown under the name. */
@@ -288,6 +294,11 @@ export interface ReportSummary {
     readonly passed: number;
     /** Failed test cases. */
     readonly failed: number;
+    /**
+     * Open findings recorded by scans and checks. They never count as failing
+     * tests, and a run with failing tests still reports both numbers.
+     */
+    readonly findings: number;
     /** Skipped test cases. */
     readonly skipped: number;
     /** Flaky test cases. */

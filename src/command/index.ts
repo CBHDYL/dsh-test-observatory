@@ -115,8 +115,10 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
       // here would be an inference this module cannot support. The instability
       // signal the report carries is the per-test attempt count a framework
       // itself reported (a test that needed more than one try), not a verdict.
-      const historyCounts = { passed: projection.tests.filter(test => test.status === 'passed').length, failed: projection.tests.filter(test => test.status === 'failed').length, skipped: projection.tests.filter(test => test.status === 'skipped').length, flaky: projection.tests.filter(test => test.status === 'flaky').length }
-      const retried = projection.tests.filter(test => (test.attempts ?? 1) > 1).length
+      const executed = projection.tests.filter(test => test.kind === 'test')
+      const historyCounts = { passed: executed.filter(test => test.status === 'passed').length, failed: executed.filter(test => test.status === 'failed').length, skipped: executed.filter(test => test.status === 'skipped').length, flaky: executed.filter(test => test.status === 'flaky').length }
+      const findings = projection.tests.filter(test => test.kind === 'finding' && test.status === 'failed').length
+      const retried = executed.filter(test => (test.attempts ?? 1) > 1).length
       const passRate = model.summary.total === 0 ? 0 : Math.round(historyCounts.passed / model.summary.total * 1000) / 10
       const hasRisk = historyCounts.failed > 0 || historyCounts.flaky > 0 || retried > 0
       model = {
@@ -125,9 +127,11 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
         regressions: projection.regressions,
         recovered: projection.recovered,
         tests: projection.tests,
-        causes: historyCounts.failed === 0 ? [] : [{ label: 'Failed structured test', count: historyCounts.failed }],
-        slowest: [...projection.tests].sort((left, right) => right.durationSeconds - left.durationSeconds).slice(0, 10).map((test, index) => ({ rank: index + 1, name: test.name, suite: test.suite, durationSeconds: test.durationSeconds })),
-        summary: { ...model.summary, ...historyCounts },
+        causes: historyCounts.failed > 0
+          ? [{ label: 'Failed structured test', count: historyCounts.failed }]
+          : findings > 0 ? [{ label: 'Open scan finding', count: findings }] : [],
+        slowest: [...executed].sort((left, right) => right.durationSeconds - left.durationSeconds).slice(0, 10).map((test, index) => ({ rank: index + 1, name: test.name, suite: test.suite, durationSeconds: test.durationSeconds })),
+        summary: { ...model.summary, ...historyCounts, findings },
         verdict: (() => {
           const experienceScore = experienceSection?.experience.total
           const testScore = Math.round(passRate)
@@ -135,9 +139,12 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
           const experienceRisk = experienceScore !== undefined && experienceScore < 100
           const headline = historyCounts.failed > 0
             ? historyCounts.failed + ' tests failed.'
-            : retried > 0
+            : findings > 0
+              ? 'Every executed test passed; ' + findings + ' scan finding(s) need review.'
+              : retried > 0
               ? retried + ' test(s) passed only after a retry.'
-              : experienceRisk ? 'Automated tests passed; experience checks scored ' + experienceScore + '/100.' : 'Every test passed.'
+              : findings > 0 ? 'Every executed test passed; ' + findings + ' scan finding(s) need review.'
+                : experienceRisk ? 'Automated tests passed; experience checks scored ' + experienceScore + '/100.' : 'Every test passed.'
           const needsReview = hasRisk || experienceRisk
           return {
             ...model.verdict,
@@ -153,7 +160,9 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
           { label: 'Pass rate', value: passRate + '%', delta: historyCounts.passed + ' of ' + model.summary.total, ...(hasRisk ? { worse: true } : {}) },
           { label: 'Total tests', value: String(model.summary.total), delta: model.summary.total + ' observed' },
           model.kpis[2]!,
-          { label: 'Needs review', value: String(historyCounts.failed + retried), delta: historyCounts.failed > 0 ? historyCounts.failed + ' failed' : retried > 0 ? retried + ' retried' : 'none', ...(hasRisk ? { worse: true } : {}) },
+          findings > 0 && historyCounts.failed + retried === 0
+            ? { label: 'Scan findings', value: String(findings), delta: 'not tests', worse: true }
+            : { label: 'Needs review', value: String(historyCounts.failed + retried), delta: historyCounts.failed > 0 ? historyCounts.failed + ' failed' : retried > 0 ? retried + ' retried' : 'none', ...(hasRisk ? { worse: true } : {}) },
         ],
       }
     } catch (error: unknown) {
@@ -168,11 +177,14 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
     return { kind: 'error', text: `report could not be written to ${outputPath}: ${error instanceof Error ? error.message : String(error)}` }
   }
 
-  const failedTests = model.tests.filter(test => test.status === 'failed')
-  const retriedCount = model.tests.filter(test => (test.attempts ?? 1) > 1).length
+  const failedTests = model.tests.filter(test => test.kind === 'test' && test.status === 'failed')
+  const openFindings = model.tests.filter(test => test.kind === 'finding' && test.status === 'failed')
+  const retriedCount = model.tests.filter(test => test.kind === 'test' && (test.attempts ?? 1) > 1).length
   const unstable = retriedCount === 0 ? '' : ` ${retriedCount} passed only on retry.`
-  const headline = `${model.summary.passed}/${model.summary.total} passed.${unstable} Report: ${outputPath}`
-  return failedTests.length === 0
-    ? { kind: 'success', text: headline }
-    : { kind: 'success', text: `${headline}\nFailed: ${failedTests.map(test => test.name).join(', ')}` }
+  const findingLine = openFindings.length === 0 ? '' : ` ${openFindings.length} scan finding(s) need review, not tests.`
+  const headline = `${model.summary.passed}/${model.summary.total} tests passed.${unstable}${findingLine} Report: ${outputPath}`
+  const detail = failedTests.length === 0
+    ? ''
+    : `\nFailed: ${failedTests.map(test => test.name).join(', ')}`
+  return { kind: 'success', text: headline + detail }
 }

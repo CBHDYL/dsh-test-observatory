@@ -100,6 +100,7 @@ function toStatus(outcome: CaseOutcome): TestStatus {
  */
 function toReportTest(outcome: CaseOutcome): ReportTest {
   return {
+    kind: 'test',
     name: outcome.testCase.name,
     path: outcome.testCase.command,
     status: toStatus(outcome),
@@ -167,16 +168,39 @@ export interface ReportInputs {
  * @returns the renderable report model.
  */
 export function buildReportModel(outcomes: readonly CaseOutcome[], inputs: ReportInputs): ReportModel {
-  const tests = inputs.structuredTests ?? outcomes.map(toReportTest)
+  const rows = inputs.structuredTests ?? outcomes.map(toReportTest)
+  // A scan finding is not a test. Counting one as a failing test reports a
+  // failing suite for a run in which every executed test passed, so the two
+  // populations are counted, scored and worded separately.
+  const tests = rows.filter(row => row.kind === 'test')
+  const findingRows = rows.filter(row => row.kind === 'finding')
   const total = tests.length
   const passed = tests.filter(test => test.status === 'passed').length
   const failed = tests.filter(test => test.status === 'failed').length
   const skipped = tests.filter(test => test.status === 'skipped').length
   const flaky = tests.filter(test => test.status === 'flaky').length
+  const findings = findingRows.filter(row => row.status === 'failed').length
   const durationSeconds = Math.round(outcomes.reduce((sum, outcome) => sum + outcome.durationMs, 0) / 10) / 100
   const passRate = total === 0 ? 0 : Math.round((passed / total) * 1000) / 10
   const project = inputs.config.report?.project ?? 'Test suite'
   const score = Math.round(passRate)
+  const findingWord = findings === 1 ? 'finding' : 'findings'
+  const headline = failed > 0
+    ? `${failed} of ${total} tests failed.`
+    : findings > 0
+      ? `Every executed test passed; ${findings} scan ${findingWord} need review.`
+      : 'Every declared test passed.'
+  const verdictLabel = failed > 0 ? 'Suite failing' : findings > 0 ? 'Suite passing · findings open' : 'Suite passing'
+  const verdictSummary = failed > 0
+    ? 'At least one declared command did not produce its expected exit code.'
+    : findings > 0
+      ? 'The executed tests completed without failures. The scan findings below are unresolved and were not executed as tests.'
+      : 'The declared command suite completed without failures.'
+  const verdictRisk = failed > 0
+    ? 'Failing commands are reported with their captured output; inspect the details table before release.'
+    : findings > 0
+      ? 'No test failed. Resolve or waive the open scan findings before release.'
+    : 'No failing command in this run.'
   const model: ReportModel = {
     meta: {
       project,
@@ -188,27 +212,29 @@ export function buildReportModel(outcomes: readonly CaseOutcome[], inputs: Repor
     },
     verdict: {
       score,
-      headline: failed === 0 ? 'Every declared test passed.' : `${failed} of ${total} tests failed.`,
-      label: failed === 0 ? 'Suite passing' : 'Suite failing',
-      summary: failed === 0
-        ? 'The declared command suite completed without failures.'
-        : 'At least one declared command did not produce its expected exit code.',
-      confidence: `${passRate}% pass rate`,
-      risk: failed === 0
-        ? 'No failing command in this run.'
-        : 'Failing commands are reported with their captured output; inspect the details table before release.',
+      headline,
+      label: verdictLabel,
+      summary: verdictSummary,
+      confidence: `${passRate}% test pass rate`,
+      risk: verdictRisk,
     },
     kpis: [
-      { label: 'Pass rate', value: `${passRate}%`, delta: `${passed} of ${total}`, ...(failed > 0 ? { worse: true } : {}) },
-      { label: 'Total tests', value: String(total), delta: `${total} declared` },
+      { label: 'Pass rate', value: `${passRate}%`, delta: `${passed} of ${total} executed`, ...(failed > 0 ? { worse: true } : {}) },
+      { label: 'Tests executed', value: String(total), delta: `${total} ran` },
       { label: 'Duration', value: formatDuration(durationSeconds), delta: 'wall clock' },
-      { label: 'Failed', value: String(failed), delta: failed === 0 ? 'none' : 'needs review', ...(failed > 0 ? { worse: true } : {}) },
+      failed > 0
+        ? { label: 'Failed tests', value: String(failed), delta: 'needs review', worse: true }
+        : findings > 0
+          ? { label: 'Scan findings', value: String(findings), delta: 'not tests', worse: true }
+          : { label: 'Failed tests', value: '0', delta: 'none' },
     ],
-    summary: { total, passed, failed, skipped, flaky, durationSeconds, coveragePercent: null, ...(inputs.snapshots === undefined ? {} : { snapshots: inputs.snapshots }) },
+    summary: { total, passed, failed, findings, skipped, flaky, durationSeconds, coveragePercent: null, ...(inputs.snapshots === undefined ? {} : { snapshots: inputs.snapshots }) },
     trend: [],
-    causes: failed === 0
-      ? []
-      : [{ label: 'Non-zero exit', count: failed }],
+    causes: failed > 0
+      ? [{ label: 'Non-zero exit', count: failed }]
+      : findings > 0
+        ? [{ label: 'Open scan finding', count: findings }]
+        : [],
     slowest: [...tests]
       .sort((left, right) => right.durationSeconds - left.durationSeconds)
       .slice(0, 10)
@@ -221,7 +247,8 @@ export function buildReportModel(outcomes: readonly CaseOutcome[], inputs: Repor
     }, { items: [], elapsed: 0 }).items,
     regressions: [],
     recovered: [],
-    tests,
+    // Every row reaches the table; the counts above stay test-only.
+    tests: rows,
   }
   if (inputs.experienceSection !== undefined) {
     const experienceScore = inputs.experienceSection.experience.total

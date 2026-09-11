@@ -87,7 +87,7 @@ describe('/test command wire-up', () => {
     await writeFile(join(scratch, 'suite.yml'), ['report:', '  project: Entry', '  outputPath: out/report.html', '  historyPath: false', 'cases:', '  - name: Greets', '    command: echo hello', ''].join('\n'))
     const result = await (await mount(scratch)).run('suite.yml')
     expect(result.kind).toBe('success')
-    expect(result.text).toContain('1/1 passed')
+    expect(result.text).toContain('1/1 tests passed')
     const document = await readFile(join(scratch, 'out/report.html'), 'utf8')
     expect(document).toContain('window.__OBSERVATORY__=')
     expect(document).toContain('Greets')
@@ -105,7 +105,7 @@ describe('/test command wire-up', () => {
     const scratch = await workspace()
     await writeFile(join(scratch, 'suite.yml'), ['report:', '  historyPath: false', 'cases:', '  - name: Fails here', '    command: exit 4', ''].join('\n'))
     const result = await (await mount(scratch)).run('suite.yml')
-    expect(result.text).toContain('0/1 passed')
+    expect(result.text).toContain('0/1 tests passed')
     expect(result.text).toContain('Failed: Fails here')
   })
 
@@ -122,7 +122,7 @@ describe('/test command wire-up', () => {
     await writeFile(join(scratch, 'junit.xml'), '<testsuite><testcase name="alpha" classname="tests.alpha" time="0.1"/><testcase name="beta" classname="tests.beta" time="0.2"><failure message="boom"/></testcase></testsuite>')
     await writeFile(join(scratch, 'suite.yml'), ['report:', '  historyPath: false', 'cases:', '  - name: Suite', '    command: "true"', '    result:', '      format: pytest', '      path: junit.xml', ''].join('\n'))
     const result = await (await mount(scratch)).run('suite.yml')
-    expect(result.text).toContain('1/2 passed')
+    expect(result.text).toContain('1/2 tests passed')
     expect(result.text).toContain('Failed: beta')
   })
 

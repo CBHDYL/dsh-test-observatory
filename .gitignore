@@ -2,3 +2,6 @@ node_modules/
 *.tgz
 lib/*.tsbuildinfo
 lib/**/*.tsbuildinfo
+
+# Spec scratch output written beside the repo while tests run
+.tmp-*
