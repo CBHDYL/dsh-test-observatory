@@ -175,6 +175,24 @@ export interface EvidenceShot {
      * gallery draws its illustrative miniature instead.
      */
     readonly imageDataUri?: string;
+    /**
+     * The same page state with the findings marked, when a region could be
+     * measured. Absent means no mark applies, not that marking failed.
+     */
+    readonly annotatedImageDataUri?: string;
+    /**
+     * Integrity defects found in this capture. Any entry means the image must be
+     * presented as untrusted: an unverifiable screenshot looks exactly like a
+     * correct one.
+     */
+    readonly integrityDefects?: readonly EvidenceDefect[];
+}
+/** One integrity defect recorded against a capture. */
+export interface EvidenceDefect {
+    /** Stable defect id, such as `evidence-overlay-left-behind`. */
+    readonly rule: string;
+    /** What was observed, in concrete terms. */
+    readonly detail: string;
 }
 /** One recorded visual or accessibility violation. */
 export interface CheckFinding {
@@ -188,6 +206,28 @@ export interface CheckFinding {
     readonly family: 'visual' | 'accessibility';
     /** Persona the check ran for. */
     readonly persona: string;
+    /**
+     * The elements this finding describes, with their measured rectangles. Empty
+     * when the producer reported no target, which is stated rather than guessed.
+     */
+    readonly evidence?: readonly FindingEvidence[];
+}
+/** One element a finding points at, and where it was measured. */
+export interface FindingEvidence {
+    /** Lowercase tag name. */
+    readonly tag: string;
+    /** Stable CSS path usable in the report and by a debugging selector. */
+    readonly selector: string;
+    /** Visible text, collapsed and truncated for display. */
+    readonly text?: string;
+    /** Measured rectangle in the stated coordinate space. */
+    readonly box: {
+        readonly x: number;
+        readonly y: number;
+        readonly width: number;
+        readonly height: number;
+        readonly space: 'viewport' | 'fullPage';
+    };
 }
 /** One user-experience finding. */
 export interface UxFinding {

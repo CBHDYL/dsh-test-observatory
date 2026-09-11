@@ -98,6 +98,39 @@ describe('renderReport', () => {
     expect(html).toContain('function esc(v)')
   })
 
+  it('offers both the marked and the clean capture, and discloses an unverified one', () => {
+    const model={...fullModel(),evidence:[{
+      id:'e1',title:'checkout',personaId:'p',journey:'J',stepLabel:'pay',kind:'key' as const,meta:'Desktop',
+      imageDataUri:'data:image/png;base64,CLEAN',
+      annotatedImageDataUri:'data:image/png;base64,MARKED',
+      integrityDefects:[{rule:'evidence-overlay-left-behind',detail:'an annotation overlay was still attached'}],
+    }]}
+    const html=renderReport(model)
+    // Both images reach the report, so a reader can always compare the mark
+    // against the page as it actually rendered.
+    expect(html).toContain('CLEAN')
+    expect(html).toContain('MARKED')
+    expect(html).toContain('evidence-overlay-left-behind')
+    // The toggle and the disclosure are part of the shipped client script.
+    expect(html).toContain('Findings marked')
+    expect(html).toContain('could not be verified')
+  })
+
+  it('ships a client-routed page per section with a fixed limits page', () => {
+    const html=renderReport(fullModel())
+    // Every section declares the page it belongs to.
+    for(const page of ['summary','tests','experience','evidence','checks','limits']) {
+      expect(html).toContain('data-page="'+page+'"')
+    }
+    expect(html).toContain('id="pageNav"')
+    // The limits prose is fixed, so a reader can always find it.
+    expect(html).toContain('Rule-driven, not a user study')
+    expect(html).toContain('A green run is only as wide as what ran')
+    expect(html).toContain('Flakiness is not decided here')
+    // Printing expands every page rather than the active one.
+    expect(html).toContain('@media print{[data-page]{display:block!important}.pages{display:none}}')
+  })
+
   it('removes empty evidence and findings cards', () => {
     const model={...fullModel(),evidence:[],findings:[]};const html=renderReport(model);expect(html).not.toContain('id="evidenceGrid"');expect(html).not.toContain('id="findings"')
   })

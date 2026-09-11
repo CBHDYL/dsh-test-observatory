@@ -4,6 +4,7 @@
  * Every field is JSON-compatible so a report can embed the model directly.
  * @module @deepseek-ai/dsh-experience-runner/types
  */
+import type { ElementEvidence } from './geometry.ts';
 import type { CaptureDefect } from './integrity.ts';
 /** One declared browser interaction inside a journey step. */
 export type JourneyAction = {
@@ -121,6 +122,11 @@ export interface CheckFinding {
     readonly detail: string;
     /** Whether the finding blocks a user task. */
     readonly severity: 'high' | 'medium';
+    /**
+     * The elements the finding describes, with their measured rectangles. Absent
+     * when the check could not read the page, which has no element to point at.
+     */
+    readonly evidence?: readonly ElementEvidence[];
 }
 /** The checks recorded for one journey. */
 export interface JourneyChecks {

@@ -80,10 +80,12 @@ export async function annotate(page: Page, annotations: readonly Annotation[]): 
   }))
   // Two-argument evaluate on a browser-context function is not expressible
   // through Playwright's generic overloads here, so the call is typed narrowly.
+  // Playwright accepts exactly one argument, so the payload travels as one object.
   const evaluator = page as unknown as {
-    evaluate: (expression: unknown, arg: unknown, attribute: string) => Promise<OverlayRect[]>
+    evaluate: (expression: unknown, arg: { items: readonly { label: string; color: string; x: number; y: number; width: number; height: number }[]; attribute: string }) => Promise<OverlayRect[]>
   }
-  const drawn = await evaluator.evaluate((items: readonly { label: string; color: string; x: number; y: number; width: number; height: number }[], attribute: string): OverlayRect[] => {
+  const drawn = await evaluator.evaluate((payload: { items: readonly { label: string; color: string; x: number; y: number; width: number; height: number }[]; attribute: string }): OverlayRect[] => {
+    const { items, attribute } = payload
     const host = document.createElement('div')
     host.setAttribute(attribute, 'host')
     host.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647'
@@ -138,13 +140,13 @@ export async function annotate(page: Page, annotations: readonly Annotation[]): 
     // attached when there is something to draw.
     if (results.length > 0) document.body.append(host)
     return results
-  }, payload, OVERLAY_ATTRIBUTE)
+  }, { items: payload, attribute: OVERLAY_ATTRIBUTE })
   return {
     drawn,
     skipped,
     async remove(): Promise<void> {
       const remover = page as unknown as {
-        evaluate: (expression: unknown, attribute: string) => Promise<void>
+        evaluate: (expression: unknown, arg: string) => Promise<void>
       }
       await remover.evaluate((attribute: string): void => {
         for (const node of Array.from(document.querySelectorAll('[' + attribute + ']'))) node.remove()

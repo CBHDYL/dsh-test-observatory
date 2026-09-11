@@ -25,9 +25,10 @@ function annotation(label: string, severity: 'high' | 'medium', box: Partial<Ele
 /** A page double that runs the annotator's in-page function against jsdom. */
 function fakePage() {
   return {
-    evaluate: async (expression: unknown, ...args: unknown[]): Promise<unknown> => {
-      const fn = expression as (...values: unknown[]) => unknown
-      return fn(...args)
+    // Mirrors Playwright: a browser-context function receives exactly one argument.
+    evaluate: async (expression: unknown, arg?: unknown): Promise<unknown> => {
+      const fn = expression as (value?: unknown) => unknown
+      return fn(arg)
     },
   }
 }

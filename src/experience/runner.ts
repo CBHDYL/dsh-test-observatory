@@ -10,6 +10,7 @@ import { chromium, type Browser, type Page } from 'playwright-core'
 import type { CapturedShot, CheckFinding, ExperienceRun, JourneyAction, JourneyChecks, JourneyOutcome, JourneySpec, StepOutcome } from './types.ts'
 import { checkAccessibility } from './a11y.ts'
 import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT, captureEvidence } from './capture.ts'
+import type { Annotation } from './annotate.ts'
 import { checkVisual } from './visual.ts'
 
 /** Deadline for the best-effort wait before page checks run. */
@@ -196,6 +197,44 @@ async function runJourney(
   }
 }
 
+/**
+ * Draw the measured finding regions onto the journey's most recent capture.
+ *
+ * The clean image is kept exactly as captured; only the marked copy is added, so
+ * a reader can always compare a mark against the page as it rendered. A capture
+ * that cannot be marked, or whose markings fail the integrity audit, keeps the
+ * defects it reported and is shown as unverified rather than silently.
+ * @param page - the journey's page, still open.
+ * @param shots - every capture recorded so far, mutated in place.
+ * @param findings - the check findings whose regions may be drawn.
+ * @param masks - dynamic regions hidden for the capture.
+ */
+async function markLastCapture(
+  page: Page,
+  shots: CapturedShot[],
+  findings: readonly CheckFinding[],
+  masks: readonly string[],
+): Promise<void> {
+  const annotations: Annotation[] = []
+  for (const [index, finding] of findings.entries()) {
+    for (const measured of finding.evidence ?? []) {
+      annotations.push({
+        label: String(index + 1) + ' ' + finding.rule,
+        severity: finding.severity,
+        evidence: measured,
+      })
+    }
+  }
+  if (annotations.length === 0) return
+  const target = shots.at(-1)
+  if (target === undefined) return
+  const result = await captureEvidence(page, annotations, masks)
+  if (result.clean === undefined) return
+  const marked = result.annotated === undefined ? {} : { annotatedDataUri: result.annotated }
+  const defects = result.defects.length === 0 ? {} : { integrityDefects: result.defects }
+  shots[shots.length - 1] = { ...target, ...marked, ...defects }
+}
+
 /** Options of {@link runExperience}. */
 export interface RunOptions {
   /** The declared journeys. */
@@ -296,7 +335,13 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
             detail: 'the journey never reached the app (the page is ' + page.url() + '), so page checks would describe the browser error page instead',
             severity: 'medium',
           }]
+        const findings = [...skipped, ...visual, ...accessibility]
         checks.push({ persona: spec.persona, visual: [...skipped, ...visual], accessibility })
+        // Mark the regions the checks measured on the journey's last capture.
+        // The annotations come from findings that only exist once the checks have
+        // run, so this is the first moment they can be drawn; the page is still
+        // open and unmasked, so the marks land where the checks measured them.
+        await markLastCapture(page, shots, findings, masks)
       }
       await page.close()
     }

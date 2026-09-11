@@ -6,7 +6,7 @@
 
 import { scoreRun } from '../experience/index.ts'
 import type { ExperienceRun, JourneyOutcome } from '../experience/index.ts'
-import type { CheckFinding, EvidenceShot, ExperienceScore, Journey, Persona, UxFinding } from '../report/index.ts'
+import type { CheckFinding, EvidenceShot, ExperienceScore, FindingEvidence, Journey, Persona, UxFinding } from '../report/index.ts'
 
 /** The experience section of the report model. */
 export interface ExperienceSection {
@@ -93,6 +93,8 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
     kind: shot.category,
     meta: shot.meta,
     imageDataUri: shot.dataUri,
+    ...(shot.annotatedDataUri === undefined ? {} : { annotatedImageDataUri: shot.annotatedDataUri }),
+    ...(shot.integrityDefects === undefined ? {} : { integrityDefects: shot.integrityDefects }),
   }))
   const findings = run.journeys.flatMap((journey, journeyIndex) =>
     journey.steps
@@ -109,7 +111,21 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
         const key = family + '|' + finding.rule + '|' + finding.detail
         if (seen.has(key)) continue
         seen.add(key)
-        checks.push({ ...finding, family, persona: entry.persona })
+        const measured = finding.evidence ?? []
+        const evidence: readonly FindingEvidence[] = measured.map(entryEvidence => ({
+          tag: entryEvidence.element.tag,
+          selector: entryEvidence.element.selector,
+          ...(entryEvidence.element.text === undefined ? {} : { text: entryEvidence.element.text }),
+          box: entryEvidence.box,
+        }))
+        checks.push({
+          rule: finding.rule,
+          detail: finding.detail,
+          severity: finding.severity,
+          family,
+          persona: entry.persona,
+          ...(evidence.length === 0 ? {} : { evidence }),
+        })
       }
     }
   }

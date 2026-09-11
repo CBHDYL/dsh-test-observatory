@@ -51,11 +51,11 @@ describe('captureEvidence', () => {
     let call = 0
     const capture = {
       screenshot: async () => { call += 1; return Buffer.alloc(call === 1 ? 2048 : 4096) },
-      evaluate: async (expression: unknown, ...args: unknown[]): Promise<unknown> => {
+      evaluate: async (expression: unknown, arg?: unknown): Promise<unknown> => {
         const source = String(expression)
         if (source.includes('innerWidth')) return { width: 1440, height: 900 }
-        const fn = expression as (...values: unknown[]) => unknown
-        return fn(...args)
+        const fn = expression as (value?: unknown) => unknown
+        return fn(arg)
       },
     }
     const result = await captureEvidence(capture as never, [annotation('image-broken')])
@@ -97,11 +97,11 @@ describe('captureEvidence', () => {
         call += 1
         return Buffer.alloc(call === 1 ? MAX_SHOT_BYTES + 1 : 2048)
       },
-      evaluate: async (expression: unknown, ...args: unknown[]): Promise<unknown> => {
+      evaluate: async (expression: unknown, arg?: unknown): Promise<unknown> => {
         const source = String(expression)
         if (source.includes('innerWidth')) return { width: 1440, height: 900 }
-        const fn = expression as (...values: unknown[]) => unknown
-        return fn(...args)
+        const fn = expression as (value?: unknown) => unknown
+        return fn(arg)
       },
     }
     const result = await captureEvidence(capture as never, [])
@@ -122,13 +122,13 @@ describe('captureEvidence', () => {
     document.body.innerHTML = ''
     const capture = {
       screenshot: async () => Buffer.alloc(2048),
-      evaluate: async (expression: unknown, ...args: unknown[]): Promise<unknown> => {
+      evaluate: async (expression: unknown, arg?: unknown): Promise<unknown> => {
         const source = String(expression)
         if (source.includes('innerWidth')) return { width: 1440, height: 900 }
         // The overlay removal is skipped, simulating a page that dropped the nodes' handler.
         if (source.includes('observatory-overlay')) return null
-        const fn = expression as (...values: unknown[]) => unknown
-        return fn(...args)
+        const fn = expression as (value?: unknown) => unknown
+        return fn(arg)
       },
     }
     await captureEvidence(capture as never, [annotation('a')])
