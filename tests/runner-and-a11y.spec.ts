@@ -12,8 +12,8 @@ function evaluatingPage(options: { violations?: unknown[]; axeThrows?: boolean }
   return {
     state,
     addScriptTag: async () => {},
-    evaluate: async (expression: string) => {
-      const run = new Function('return (' + expression + ')')() as (document: unknown) => Promise<unknown>
+    evaluate: async (expression: string, argument?: unknown) => {
+      const run = new Function('return (' + expression + ')')() as (argument: unknown) => Promise<unknown>
       const axe = {
         run: async () => {
           if (options.axeThrows === true) throw new Error('axe refused to run')
@@ -22,14 +22,20 @@ function evaluatingPage(options: { violations?: unknown[]; axeThrows?: boolean }
       }
       // The serialized mapper reads the window.axe and document globals, exactly
       // as it does inside a browser.
-      const document = {}
+      // The measurement pass queries the document, so the stub answers a
+      // selector with a rectangle the way a rendered page would.
+      const document = {
+        querySelector: (selector: string) => selector === 'unmeasurable'
+          ? null
+          : { getBoundingClientRect: () => ({ x: 10, y: 20, width: 30, height: 40 }) },
+      }
       const globals = globalThis as { window?: unknown; document?: unknown }
       const previousWindow = globals.window
       const previousDocument = globals.document
       globals.window = { axe }
       globals.document = document
       try {
-        return await run(document)
+        return await run(argument)
       } finally {
         if (previousWindow === undefined) delete globals.window
         else globals.window = previousWindow

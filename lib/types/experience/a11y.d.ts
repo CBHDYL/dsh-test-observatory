@@ -1,5 +1,5 @@
 import type { Page } from 'playwright-core';
-import type { ElementEvidence } from './geometry.ts';
+import type { ElementBox, ElementEvidence } from './geometry.ts';
 import type { VisualViolation } from './visual.ts';
 /** Elements kept per violation, so one noisy rule cannot bloat the model. */
 export declare const MAX_AXE_NODES = 10;
@@ -62,7 +62,7 @@ export declare function textOf(node: AxeNode): string | undefined;
  * @param node - the axe node.
  * @returns the reference and rectangle, or undefined when no selector was reported.
  */
-export declare function evidenceOf(node: AxeNode): ElementEvidence | undefined;
+export declare function evidenceOf(node: AxeNode, measured?: ElementBox): ElementEvidence | undefined;
 /**
  * Run an axe-core scan over the page's current state.
  * @param page - the page to scan.
