@@ -24,7 +24,7 @@ export const MAX_AXE_NODES = 10
 const TEXT_LIMIT = 80
 
 /** The slice of one axe node this module reads. */
-interface AxeNode {
+export interface AxeNode {
   /** CSS selectors axe computed for the node; the first is the most specific. */
   target?: readonly (string | string[])[]
   /** The node's rendered text, already excerpted by axe. */
@@ -44,49 +44,71 @@ interface AxeViolation {
 /** Result of one in-page axe run. */
 interface AxeReport { readonly violations: readonly AxeViolation[] }
 
-/** Whether a run reports a structured axe payload. */
-function asAxeReport(value: unknown): AxeReport | undefined {
+/** Whether a run reports a structured axe payload.
+ * @param value - the value an in-page run returned.
+ * @returns the report, or undefined when the value is not one.
+ */
+export function asAxeReport(value: unknown): AxeReport | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const violations = (value as { violations?: unknown }).violations
   return Array.isArray(violations) ? value as AxeReport : undefined
 }
 
-/** Whether a node's target is the observed selectors it claims to be. */
-function targetsOf(node: AxeNode): readonly string[] {
+/** The selectors a node's target reports, ignoring the nested form.
+ * @param node - the axe node.
+ * @returns the flat selectors, in reported order.
+ */
+export function targetsOf(node: AxeNode): readonly string[] {
   return Array.isArray(node.target) ? node.target.filter((entry): entry is string => typeof entry === 'string') : []
 }
 
-/** Whether the node's target is the nested selector list axe may report. */
-function nestedTargetsOf(node: AxeNode): readonly string[] {
+/** The selectors from the nested target form axe may report.
+ * @param node - the axe node.
+ * @returns the nested selectors, flattened, in reported order.
+ */
+export function nestedTargetsOf(node: AxeNode): readonly string[] {
   return Array.isArray(node.target)
     ? node.target.filter((entry): entry is string[] => Array.isArray(entry)).flat()
     : []
 }
 
-/** The first selector axe reported for a node, when it reported any. */
-function selectorOf(node: AxeNode): string | undefined {
+/** The first selector axe reported for a node, preferring the flat form.
+ * @param node - the axe node.
+ * @returns the selector, or undefined when the node reported none.
+ */
+export function selectorOf(node: AxeNode): string | undefined {
   const flat = targetsOf(node)
   const nested = nestedTargetsOf(node)
   return flat[0] ?? nested[0] ?? undefined
 }
 
-/** A readable tag name inferred from the node's markup. */
-function tagOf(node: AxeNode, selector: string | undefined): string {
+/** A readable tag name inferred from the node's markup, then its selector.
+ * @param node - the axe node.
+ * @param selector - the selector already derived for the node.
+ * @returns a lowercase tag name, or `element` when neither source names one.
+ */
+export function tagOf(node: AxeNode, selector: string | undefined): string {
   const fromHtml = /^<([a-zA-Z][a-zA-Z0-9-]*)/.exec(node.html ?? '')?.[1]
   if (fromHtml !== undefined) return fromHtml.toLowerCase()
   const fromSelector = /^([a-zA-Z][a-zA-Z0-9-]*)/.exec(selector ?? '')?.[1]
   return (fromSelector ?? 'element').toLowerCase()
 }
 
-/** The node's visible text, collapsed and truncated for display. */
-function textOf(node: AxeNode): string | undefined {
+/** The node's visible text, collapsed and truncated for display.
+ * @param node - the axe node.
+ * @returns the excerpt, or undefined when the markup carries no text.
+ */
+export function textOf(node: AxeNode): string | undefined {
   const stripped = (node.html ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
   if (stripped.length === 0) return undefined
   return stripped.length > TEXT_LIMIT ? stripped.slice(0, TEXT_LIMIT) + '…' : stripped
 }
 
-/** The element evidence for one axe node that reported a selector. */
-function evidenceOf(node: AxeNode): ElementEvidence | undefined {
+/** The element evidence for one axe node that reported a selector.
+ * @param node - the axe node.
+ * @returns the reference and rectangle, or undefined when no selector was reported.
+ */
+export function evidenceOf(node: AxeNode): ElementEvidence | undefined {
   const selector = selectorOf(node)
   if (selector === undefined) return undefined
   const text = textOf(node)

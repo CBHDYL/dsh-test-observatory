@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_BEHAVIOR } from '../src/experience/behavior/index.ts'
 import { drawsFocusIndicator } from '../src/experience/in-page.ts'
 import { checkKeyboard, probeOpenDialog } from '../src/experience/keyboard-checks.ts'
+import { MAX_ELEMENT_TEXT } from '../src/experience/geometry.ts'
 import { scoreRun } from '../src/experience/scoring.ts'
 import type { ExperienceRun, JourneyOutcome } from '../src/experience/types.ts'
 import { collectViolations } from '../src/experience/visual.ts'
@@ -42,6 +43,23 @@ describe('drawsFocusIndicator colour forms', () => {
 
   it('accepts a named colour in a shadow as drawn', () => {
     expect(drawsFocusIndicator(styleOf({ boxShadow: '0 0 0 3px rebeccapurple' }))).toBe(true)
+  })
+
+  it('accepts an rgba colour that is not fully transparent', () => {
+    expect(drawsFocusIndicator(styleOf({ boxShadow: 'rgba(0, 0, 0, 0.4) 0px 0px 0px 3px' }))).toBe(true)
+  })
+
+  it('judges an rgba colour with too few parts as opaque', () => {
+    // A malformed value cannot be read as transparent, so it is not suppressed.
+    expect(drawsFocusIndicator(styleOf({ boxShadow: 'rgba(0, 0, 0) 0px 0px 0px 3px' }))).toBe(true)
+  })
+
+  it('accepts a named outline width as drawn', () => {
+    expect(drawsFocusIndicator(styleOf({ outline: 'rgb(0, 0, 0) solid medium', outlineStyle: 'solid', outlineWidth: 'medium' }))).toBe(true)
+  })
+
+  it('rejects a shorthand with no width at all', () => {
+    expect(drawsFocusIndicator(styleOf({ outline: 'rgb(0, 0, 0) solid', outlineStyle: 'solid', outlineWidth: '' }))).toBe(false)
   })
 })
 
@@ -105,6 +123,13 @@ describe('accessibility scoring', () => {
     expect(blocking.accessibilityFindings).toBe(1)
     expect(blocking.dimensions.find(d => d.label === 'Accessibility')?.earned).toBe(7)
     expect(minor.dimensions.find(d => d.label === 'Accessibility')?.earned).toBe(9)
+  })
+})
+
+describe('element text limit', () => {
+  it('keeps the documented excerpt bound', () => {
+    // The constant is part of the geometry contract a consumer reads.
+    expect(MAX_ELEMENT_TEXT).toBe(80)
   })
 })
 
