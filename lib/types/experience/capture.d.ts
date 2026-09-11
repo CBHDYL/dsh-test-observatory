@@ -12,6 +12,8 @@ import type { Annotation } from './annotate.ts';
 import type { CaptureDefect } from './integrity.ts';
 /** Bound on one captured image's encoded size, so the report stays openable. */
 export declare const MAX_SHOT_BYTES = 400000;
+/** Share of a captured region that must carry content for the capture to stand alone. */
+export declare const MIN_INK_SHARE = 0.25;
 /** A page's declared viewport, as the capture should reproduce it. */
 export interface ViewportFacts {
     /** Visible width in CSS pixels. */
@@ -27,6 +29,11 @@ export interface CaptureResult {
     readonly annotated?: string;
     /** Integrity defects; any entry means the capture must be shown as untrusted. */
     readonly defects: readonly CaptureDefect[];
+    /**
+     * What the capture chose to show, when it did not show the whole viewport.
+     * Stated so a reader can tell a focused capture from a full-screen one.
+     */
+    readonly focus?: string;
 }
 /**
  * Capture the page's current state as evidence.
@@ -56,3 +63,13 @@ export declare function captureEvidence(page: Page, annotations?: readonly Annot
  * @throws when the element never becomes visible or has no layout box.
  */
 export declare function captureElement(page: Page, selector: string): Promise<CaptureResult>;
+/**
+ * Capture the densest region of the page instead of the whole viewport, so a
+ * sparse screen still yields evidence a reader can use. Falls back to nothing
+ * when the page has no distinct region, and the caller captures the viewport.
+ * @param page - the page to capture from.
+ * @returns the encoded region and its integrity defects.
+ */
+export declare function captureFocused(page: Page): Promise<CaptureResult & {
+    focus?: string;
+}>;

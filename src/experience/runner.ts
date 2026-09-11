@@ -13,7 +13,7 @@ import { checkAccessibility } from './a11y.ts'
 import { checkKeyboard, probeOpenDialog } from './keyboard-checks.ts'
 import { applyEnvironment } from './behavior/environment.ts'
 import { behaviorDimensions, resolveBehavior } from './behavior/index.ts'
-import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT, captureElement, captureEvidence } from './capture.ts'
+import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT, captureElement, captureEvidence, captureFocused } from './capture.ts'
 import type { Annotation } from './annotate.ts'
 import { checkVisual } from './visual.ts'
 
@@ -308,7 +308,12 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
       const meta = [spec.device, String(viewport.width) + 'x' + String(viewport.height)].join(' · ')
       let activeStepLabel = ''
       const capture = async (caption: string, category: CapturedShot['category'], selector?: string): Promise<string | undefined> => {
-        const result = selector === undefined ? await captureEvidence(page, [], masks) : await captureElement(page, selector)
+        // An explicit element wins; otherwise the page picks its own densest
+        // region, and a page without one falls back to the viewport.
+        const focused = selector === undefined ? await captureFocused(page) : undefined
+        const result = selector === undefined
+          ? (focused?.clean === undefined ? await captureEvidence(page, [], masks) : focused)
+          : await captureElement(page, selector)
         if (result.clean === undefined) return undefined
         const id = 'evidence-' + String(shots.length + 1)
         shots.push({
@@ -318,7 +323,7 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
           persona: spec.persona,
           journey: spec.name,
           stepLabel: activeStepLabel,
-          meta,
+          meta: result.focus === undefined ? meta : meta + ' · ' + result.focus,
           dataUri: result.clean,
           ...(result.annotated === undefined ? {} : { annotatedDataUri: result.annotated }),
           ...(result.defects.length === 0 ? {} : { integrityDefects: result.defects }),

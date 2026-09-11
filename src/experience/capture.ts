@@ -8,6 +8,7 @@
  * @module @cbhdyl/dsh-test-observatory/experience/capture
  */
 import type { Page } from 'playwright-core'
+import { focusRegion } from './focus.ts'
 import { annotate, overlayPresent } from './annotate.ts'
 import type { Annotation } from './annotate.ts'
 import { auditCapture } from './integrity.ts'
@@ -16,6 +17,8 @@ import { maskDynamic } from './mask.ts'
 
 /** Bound on one captured image's encoded size, so the report stays openable. */
 export const MAX_SHOT_BYTES = 400_000
+/** Share of a captured region that must carry content for the capture to stand alone. */
+export const MIN_INK_SHARE = 0.25
 
 /** Quality ladder tried in order until an image fits {@link MAX_SHOT_BYTES}. */
 const ENCODINGS: readonly { readonly type: 'png' | 'jpeg'; readonly quality?: number }[] = [
@@ -49,6 +52,11 @@ export interface CaptureResult {
   readonly annotated?: string
   /** Integrity defects; any entry means the capture must be shown as untrusted. */
   readonly defects: readonly CaptureDefect[]
+  /**
+   * What the capture chose to show, when it did not show the whole viewport.
+   * Stated so a reader can tell a focused capture from a full-screen one.
+   */
+  readonly focus?: string
 }
 
 /**
@@ -142,6 +150,40 @@ export async function captureElement(page: Page, selector: string): Promise<Capt
     return { defects: [...defects, { rule: 'evidence-too-large', detail: 'the element capture is ' + String(bytes.byteLength) + ' bytes, above the ' + String(MAX_SHOT_BYTES) + '-byte bound' }] }
   }
   return { clean: 'data:' + mime + ';base64,' + bytes.toString('base64'), defects }
+}
+
+/**
+ * Capture the densest region of the page instead of the whole viewport, so a
+ * sparse screen still yields evidence a reader can use. Falls back to nothing
+ * when the page has no distinct region, and the caller captures the viewport.
+ * @param page - the page to capture from.
+ * @returns the encoded region and its integrity defects.
+ */
+export async function captureFocused(page: Page): Promise<CaptureResult & { focus?: string }> {
+  const region = await focusRegion(page)
+  if (region === undefined) return { defects: [] }
+  let bytes = await page.screenshot({ type: 'png', clip: { x: region.x, y: region.y, width: region.width, height: region.height } })
+  let mime = 'image/png'
+  if (bytes.byteLength > MAX_SHOT_BYTES) {
+    bytes = await page.screenshot({ type: 'jpeg', quality: 60, clip: { x: region.x, y: region.y, width: region.width, height: region.height } })
+    mime = 'image/jpeg'
+  }
+  const defects = auditCapture({
+    cleanBytes: bytes.byteLength,
+    drawn: [],
+    overlayLeftBehind: false,
+    expectedWidth: region.width,
+    expectedHeight: region.height,
+  })
+  const lowContent = region.inkShare < MIN_INK_SHARE
+    ? [{ rule: 'evidence-low-content', detail: 'only ' + String(Math.round(region.inkShare * 100)) + '% of the captured region carries content, so the page is mostly empty space' }]
+    : []
+  // A capture that stays above the bound is dropped, not embedded: the report
+  // has to keep its size, and an oversized image is not evidence a reader can use.
+  if (bytes.byteLength > MAX_SHOT_BYTES) {
+    return { defects: [...defects, ...lowContent, { rule: 'evidence-too-large', detail: 'the focused capture is ' + String(bytes.byteLength) + ' bytes at every quality, above the ' + String(MAX_SHOT_BYTES) + '-byte bound' }], focus: region.reason }
+  }
+  return { clean: 'data:' + mime + ';base64,' + bytes.toString('base64'), defects: [...defects, ...lowContent], focus: region.reason }
 }
 
 async function captureMasked(page: Page, annotations: readonly Annotation[]): Promise<CaptureResult> {
