@@ -13,7 +13,7 @@ import { checkAccessibility } from './a11y.ts'
 import { checkKeyboard, probeOpenDialog } from './keyboard-checks.ts'
 import { applyEnvironment } from './behavior/environment.ts'
 import { behaviorDimensions, resolveBehavior } from './behavior/index.ts'
-import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT, captureEvidence } from './capture.ts'
+import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT, captureElement, captureEvidence } from './capture.ts'
 import type { Annotation } from './annotate.ts'
 import { checkVisual } from './visual.ts'
 
@@ -104,7 +104,7 @@ export function resolveExecutable(): string | undefined {
 async function runAction(
   page: Page,
   action: JourneyAction,
-  capture: (caption: string, category: CapturedShot['category']) => Promise<string | undefined>,
+  capture: (caption: string, category: CapturedShot['category'], selector?: string) => Promise<string | undefined>,
   settleTimeoutMs: number,
 ): Promise<string | undefined> {
   switch (action.kind) {
@@ -141,7 +141,7 @@ async function runAction(
       await page.locator(action.selector).first().waitFor({ state: 'visible' })
       return
     case 'screenshot':
-      return capture(action.caption, action.category)
+      return capture(action.caption, action.category, action.selector)
   }
 }
 
@@ -156,7 +156,7 @@ async function runAction(
 async function runJourney(
   page: Page,
   spec: JourneySpec,
-  capture: (caption: string, category: CapturedShot['category']) => Promise<string | undefined>,
+  capture: (caption: string, category: CapturedShot['category'], selector?: string) => Promise<string | undefined>,
   retries: number,
   settleTimeoutMs: number,
   setActiveStep: (label: string) => void,
@@ -307,8 +307,8 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
       const environment = await applyEnvironment(page, behavior.environment)
       const meta = [spec.device, String(viewport.width) + 'x' + String(viewport.height)].join(' · ')
       let activeStepLabel = ''
-      const capture = async (caption: string, category: CapturedShot['category']): Promise<string | undefined> => {
-        const result = await captureEvidence(page, [], masks)
+      const capture = async (caption: string, category: CapturedShot['category'], selector?: string): Promise<string | undefined> => {
+        const result = selector === undefined ? await captureEvidence(page, [], masks) : await captureElement(page, selector)
         if (result.clean === undefined) return undefined
         const id = 'evidence-' + String(shots.length + 1)
         shots.push({
@@ -327,7 +327,7 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
       }
       let journey: JourneyOutcome
       try {
-        journey = await runJourney(page, spec, async (caption, category) => capture(caption, category), retries, settleTimeoutMs, (label) => { activeStepLabel = label }, behavior, environment.applied)
+        journey = await runJourney(page, spec, async (caption, category, selector) => capture(caption, category, selector), retries, settleTimeoutMs, (label) => { activeStepLabel = label }, behavior, environment.applied)
       } finally {
         await environment.restore()
       }

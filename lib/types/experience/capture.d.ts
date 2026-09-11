@@ -40,3 +40,19 @@ export interface CaptureResult {
  * @returns the images and the integrity verdict for this capture.
  */
 export declare function captureEvidence(page: Page, annotations?: readonly Annotation[], masks?: readonly string[]): Promise<CaptureResult>;
+/**
+ * Capture the page while the caller holds any masking in place.
+ * @param page - the page to capture.
+ * @param annotations - regions to mark on the second image.
+ * @returns the images and the integrity verdict.
+ */
+/**
+ * Capture one element instead of the viewport. A sparse page renders mostly
+ * empty space, so an unfocused capture shows a reader almost nothing; the
+ * element the step is about is the evidence the step was meant to produce.
+ * @param page - the page to capture from.
+ * @param selector - the element to capture.
+ * @returns the encoded image and its integrity defects.
+ * @throws when the element never becomes visible or has no layout box.
+ */
+export declare function captureElement(page: Page, selector: string): Promise<CaptureResult>;

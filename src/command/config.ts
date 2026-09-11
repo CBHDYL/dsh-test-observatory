@@ -304,7 +304,9 @@ function toAction(raw: unknown, where: string): JourneySpec['steps'][number]['ac
       if (category !== 'key' && category !== 'fail' && category !== 'mobile' && category !== 'final') {
         throw new SuiteConfigError(`${where}: "category" must be key, fail, mobile or final`)
       }
-      return { kind: 'screenshot', caption: requireString(record, 'caption', where), category }
+      const selector = record['selector']
+      if (selector !== undefined && (typeof selector !== 'string' || selector.trim().length === 0)) throw new SuiteConfigError(`${where}.selector: must be a non-empty string`)
+      return { kind: 'screenshot', caption: requireString(record, 'caption', where), category, ...(selector === undefined ? {} : { selector }) }
     }
     default:
       throw new SuiteConfigError(`${where}: "kind" must be goto, click, fill, expectText, expectVisible, wait or screenshot`)

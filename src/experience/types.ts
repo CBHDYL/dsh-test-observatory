@@ -17,7 +17,16 @@ export type JourneyAction =
   | { readonly kind: 'expectText'; readonly text: string }
   | { readonly kind: 'expectVisible'; readonly selector: string }
   | { readonly kind: 'wait'; readonly ms?: number; readonly selector?: string }
-  | { readonly kind: 'screenshot'; readonly caption: string; readonly category: 'key' | 'fail' | 'mobile' | 'final' }
+  | {
+    readonly kind: 'screenshot'
+    readonly caption: string
+    readonly category: 'key' | 'fail' | 'mobile' | 'final'
+    /**
+     * Element to capture instead of the whole viewport. A sparse page renders
+     * mostly empty space, so an unfocused capture shows almost nothing.
+     */
+    readonly selector?: string
+  }
 
 /** One step of a declared journey: a label plus the actions it performs. */
 export interface JourneyStepSpec {
