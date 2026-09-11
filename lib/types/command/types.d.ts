@@ -5,7 +5,7 @@
 import type { JourneySpec } from '../experience/types.ts';
 export type { JourneySpec };
 /** Supported structured result formats emitted by test frameworks. */
-export type StructuredResultFormat = 'junit' | 'vitest' | 'jest' | 'playwright' | 'pytest' | 'api' | 'performance';
+export type StructuredResultFormat = 'junit' | 'vitest' | 'jest' | 'playwright' | 'pytest' | 'api' | 'performance' | 'sarif';
 /** One structured result artifact written by a declared command. */
 export interface StructuredResultSpec {
     /** Parser selected for the artifact. */

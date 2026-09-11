@@ -120,7 +120,7 @@ function toStructuredResult(raw: unknown, where: string): NonNullable<SuiteCase[
   const record = asRecord(raw)
   if (record === null) throw new SuiteConfigError(`${where}: must be a mapping`)
   const format = requireString(record, 'format', where)
-  const formats = ['junit', 'vitest', 'jest', 'playwright', 'pytest', 'api', 'performance'] as const
+  const formats = ['junit', 'vitest', 'jest', 'playwright', 'pytest', 'api', 'performance', 'sarif'] as const
   if (!formats.includes(format as typeof formats[number])) {
     throw new SuiteConfigError(`${where}.format: must be junit, vitest, jest, playwright, pytest, api or performance`)
   }

@@ -2,6 +2,8 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { ApiObservation, PerformanceObservation, ReportTest, TestAttachment, TestStatus } from '../report/types.ts'
+import { parseJUnitDocument } from './junit.ts'
+import { parseSarif } from './sarif.ts'
 import type { StructuredResultSpec, SuiteCase } from './types.ts'
 
 interface ParsedCase { name: string; path?: string; suite?: string; status: TestStatus; durationSeconds?: number; error?: string; attempts?: number; attachments?: readonly TestAttachment[]; api?: ApiObservation; performance?: PerformanceObservation }
@@ -16,19 +18,6 @@ const status = (value: unknown): TestStatus => {
   if (normalized.includes('flaky')) return 'flaky'
   if (normalized === 'passed' || normalized === 'pass' || normalized === 'ok' || normalized === 'expected') return 'passed'
   return 'failed'
-}
-const decode = (value: string): string => value.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&')
-const attr = (tag: string, key: string): string | undefined => text(new RegExp('\\s'+key+'=["\']([^"\']*)["\']').exec(tag)?.[1])
-
-function parseJUnit(source: string): ParsedCase[] {
-  const rows: ParsedCase[] = []
-  for (const match of source.matchAll(/<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g)) {
-    const attrs = match[1] ?? '', body = match[2] ?? ''
-    const failure = /<(failure|error)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(failure|error)>)/.exec(body)
-    const path = attr(attrs, 'file'), suite = attr(attrs, 'classname'), durationSeconds = Number(attr(attrs, 'time'))
-    rows.push({ name: decode(attr(attrs, 'name') ?? 'unnamed test'), status: failure ? 'failed' : /<skipped\b/.test(body) ? 'skipped' : 'passed', ...(path ? { path } : {}), ...(suite ? { suite } : {}), ...(Number.isFinite(durationSeconds) ? { durationSeconds } : {}), ...(failure ? { error: decode((failure[3]?.replace(/<!\[CDATA\[|\]\]>/g, '').trim() || attr(failure[2] ?? '', 'message') || 'test failed')) } : {}) })
-  }
-  return rows
 }
 
 function parsePlaywright(value: unknown, out: ParsedCase[], inherited = '', inheritedFile?: string): void {
@@ -116,8 +105,33 @@ function inferPytestPath(classname: string): string | undefined {
 export async function parseStructuredResult(spec: StructuredResultSpec, testCase: SuiteCase, cwd: string): Promise<ReportTest[]> {
   const source = await readFile(resolve(cwd, spec.path), 'utf8')
   const parsed: ParsedCase[] = spec.format === 'junit' || spec.format === 'pytest'
-    ? parseJUnit(source)
-    : (() => { const value: unknown=JSON.parse(source); if(spec.format==='api')return parseApi(value); if(spec.format==='performance')return parsePerformance(value); const out: ParsedCase[]=[]; if(spec.format==='playwright')parsePlaywright(value,out);else visit(value,spec.format,out);return out })()
+    ? parseJUnitDocument(source).map(entry => ({
+        name: entry.name,
+        ...(entry.file === undefined ? {} : { path: entry.file }),
+        ...(entry.classname === undefined ? {} : { suite: entry.classname }),
+        status: entry.status,
+        ...(entry.durationSeconds === undefined ? {} : { durationSeconds: entry.durationSeconds }),
+        ...(entry.error === undefined ? {} : { error: entry.error }),
+        ...(entry.attempts === undefined ? {} : { attempts: entry.attempts }),
+      }))
+    : (() => {
+        const value: unknown = JSON.parse(source)
+        if (spec.format === 'api') return parseApi(value)
+        if (spec.format === 'performance') return parsePerformance(value)
+        if (spec.format === 'sarif') return parseSarif(value).map(finding => ({
+          // A warning and an error both fail: a report that let them pass would
+          // hide the findings the scan exists to surface. Notes are informational.
+          name: finding.rule + (finding.file === undefined ? '' : ' · ' + finding.file + (finding.line === undefined ? '' : ':' + String(finding.line))),
+          path: finding.file ?? finding.rule,
+          suite: 'Static analysis',
+          status: (finding.level === 'error' || finding.level === 'warning' ? 'failed' : 'passed') as TestStatus,
+          ...(finding.level === 'error' || finding.level === 'warning' ? { error: finding.message } : {}),
+        }))
+        const out: ParsedCase[] = []
+        if (spec.format === 'playwright') parsePlaywright(value, out)
+        else visit(value, spec.format, out)
+        return out
+      })()
   if (parsed.length === 0) throw new Error(`structured result ${spec.path} contains no recognizable test results`)
   return parsed.map(item => ({ name:item.name,path:item.path ?? (spec.format === 'pytest' && item.suite ? inferPytestPath(item.suite) ?? spec.path : spec.path),status:item.status,suite:item.suite||testCase.suite||spec.format,durationSeconds:item.durationSeconds??0,owner:testCase.owner??'Unassigned',framework:spec.format,...(item.error?{error:item.error}:{}),...(item.attempts?{attempts:item.attempts}:{}),...(item.attachments?.length?{attachments:item.attachments}:{}),...(item.api?{api:item.api}:{}),...(item.performance?{performance:item.performance}:{}) }))
 }
