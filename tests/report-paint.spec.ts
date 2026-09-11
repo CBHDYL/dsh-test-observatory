@@ -74,6 +74,37 @@ describe('the shipped report script', () => {
     expect(row?.textContent ?? '').toContain('.tag')
   })
 
+  it('offers the run suites in the filter, not the design prototype suites', () => {
+    const source = model()
+    const document = paint(source).dom.window.document
+    const options = Array.from(document.querySelectorAll('#suite option')).map(option => option.textContent ?? '')
+    expect(options).toEqual(['All suites', 'Unit'])
+    expect(options.join(' ')).not.toContain('Checkout')
+  })
+
+  it('counts executed tests and scan findings separately in the subtitle', () => {
+    const source = model()
+    const finding = { kind: 'finding' as const, name: 'PLR0402 · a.py:7', path: 'a.py', status: 'failed' as const, suite: 'Static analysis', durationSeconds: 0, owner: 'Team' }
+    const document = paint({ ...source, tests: [...source.tests, finding] }).dom.window.document
+    expect(document.querySelector('#testsSubtitle')?.textContent ?? '').toContain('Explore 1 test and 1 scan finding across 2 suites')
+  })
+
+  it('marks a finding row so it cannot be read as a failing test, and filters by it', () => {
+    const source = model()
+    const finding = { kind: 'finding' as const, name: 'PLR0402 · a.py:7', path: 'a.py', status: 'failed' as const, suite: 'Static analysis', durationSeconds: 0, owner: 'Team' }
+    const document = paint({ ...source, tests: [...source.tests, finding] }).dom.window.document
+    const rows = Array.from(document.querySelectorAll('#tbody tr'))
+    expect(rows).toHaveLength(2)
+    expect(rows[1]?.textContent ?? '').toContain('finding')
+  })
+
+  it('renders a sub-second duration in milliseconds rather than as zero', () => {
+    const document = paint(model()).dom.window.document
+    const cells = Array.from(document.querySelectorAll('#tbody tr td'))
+    expect(cells.map(cell => cell.textContent ?? '').join(' ')).toContain('500ms')
+    expect(cells.map(cell => cell.textContent ?? '').join(' ')).not.toContain('0.0s')
+  })
+
   it('escapes a requirement that names an element', () => {
     const withMarkup = model()
     const document = paint({ ...withMarkup, checks: [{ ...withMarkup.checks[0]!, fix: 'Mark the title as <h1>.' }] }).dom.window.document
