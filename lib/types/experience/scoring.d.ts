@@ -2,7 +2,7 @@
  * Rule-based experience scoring. The score is a transparent sum of weighted
  * dimensions, so a reader can always reproduce it from the recorded outcomes;
  * an AI narrative may explain a finding but never moves the number.
- * @module @deepseek-ai/dsh-experience-runner/scoring
+ * @module @cbhdyl/dsh-test-observatory/experience/scoring
  */
 import type { ExperienceRun } from './types.ts';
 /** One weighted dimension of the experience score. */

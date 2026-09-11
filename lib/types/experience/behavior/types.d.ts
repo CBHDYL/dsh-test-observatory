@@ -12,7 +12,7 @@
  * synthetic participants found that model-chosen behaviour diverges from human
  * distributions, so a policy describes which defect classes a run covers, never
  * a population.
- * @module @deepseek-ai/dsh-experience-runner/behavior/types
+ * @module @cbhdyl/dsh-test-observatory/experience/behavior/types
  */
 /**
  * The variant names an input can carry. `declared` marks the value the journey

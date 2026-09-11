@@ -35,6 +35,26 @@ async function run(definition: ToolDefinition, args: unknown, signal = new Abort
   return await definition.execute(args, exec) as unknown as ToolValue
 }
 
+/** Render the registered definition's model-facing result as plain text. */
+function render(definition: ToolDefinition, value: unknown): string {
+  const blocks = definition.output.render({}, value as never) as readonly { readonly text?: string }[]
+  return blocks.map(block => block.text ?? '').join('\n')
+}
+
+/** One failing result row for render-level assertions. */
+function failure(name: string, overrides: { readonly stdout?: string; readonly stderr?: string } = {}) {
+  return {
+    name,
+    command: 'false',
+    exitCode: 1,
+    expectedExitCode: 0,
+    passed: false,
+    durationMs: 1,
+    stdout: overrides.stdout ?? '',
+    stderr: overrides.stderr ?? '',
+  }
+}
+
 /** A fresh directory for one report. */
 async function scratch(): Promise<string> {
   return mkdtemp(join(tmpdir(), 'observatory-tool-entry-'))
@@ -130,5 +150,50 @@ describe('run_tests tool wire-up', () => {
     const value = await run(mount(), { testCases: [], reportPath })
     expect(value.summary.total).toBe(0)
     expect(await readFile(reportPath, 'utf8')).toContain('window.__OBSERVATORY__=')
+  })
+
+  it('renders only the summary line when every case passes', async () => {
+    const reportPath = join(await scratch(), 'report.html')
+    const definition = mount()
+    const value = await run(definition, { testCases: [{ name: 'ok', command: 'true' }], reportPath })
+    expect(render(definition, value)).toBe(`Ran 1 tests: 1 passed, 0 failed. Report written to ${reportPath}.`)
+  })
+
+  it('repeats a failing case exit code, command and captured diagnosis', async () => {
+    const reportPath = join(await scratch(), 'report.html')
+    const definition = mount()
+    const value = await run(definition, {
+      testCases: [{ name: 'explodes', command: 'echo boom 1>&2; exit 7' }],
+      reportPath,
+    })
+    const text = render(definition, value)
+    expect(text).toContain('Test case "explodes" exited 7, expected 0.')
+    expect(text).toContain('Command: echo boom 1>&2; exit 7')
+    expect(text).toContain('boom')
+  })
+
+  it('collapses failures beyond the rendered cap into a count', () => {
+    const definition = mount()
+    const results = Array.from({ length: 8 }, (_unused, index) => failure(`case-${String(index)}`))
+    const text = render(definition, { reportPath: '/tmp/report.html', summary: { total: 8, passed: 0, failed: 8, durationMs: 1 }, results })
+    expect(text.match(/Test case /gu)).toHaveLength(5)
+    expect(text).toContain('3 further failing case(s) are in the report.')
+  })
+
+  it('keeps the tail of a long failing diagnosis and marks the cut', () => {
+    const definition = mount()
+    const noisy = failure('noisy', { stderr: 'x'.repeat(5_000) + 'the-real-error' })
+    const text = render(definition, { reportPath: '/tmp/report.html', summary: { total: 1, passed: 0, failed: 1, durationMs: 1 }, results: [noisy] })
+    expect(text).toContain('the-real-error')
+    expect(text).toContain('... [truncated] ')
+    expect(text.length).toBeLessThan(1_200)
+  })
+
+  it('omits the evidence paragraph when a failing case captured nothing', () => {
+    const definition = mount()
+    const silent = { ...failure('silent'), exitCode: null }
+    const text = render(definition, { reportPath: '/tmp/report.html', summary: { total: 1, passed: 0, failed: 1, durationMs: 1 }, results: [silent] })
+    expect(text).toContain('Test case "silent" did not exit normally, expected 0.')
+    expect(text.split('\n').at(-1)).toBe('Command: false')
   })
 })

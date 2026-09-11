@@ -2,7 +2,7 @@
  * Suite execution: run every declared case, then build the report model the
  * renderer consumes. The command shell is the only external dependency, so the
  * model construction is a pure function of the settled case outcomes.
- * @module @deepseek-ai/dsh-command-test/runner
+ * @module @cbhdyl/dsh-test-observatory/command/runner
  */
 import type { ReportModel, ReportTest } from '../report/index.ts';
 import type { SuiteCase, SuiteConfig } from './types.ts';

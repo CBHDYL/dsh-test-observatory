@@ -7,7 +7,7 @@
  * 2. Is the interface itself correct?
  * This module answers only the first. The second needs a reviewed baseline and
  * a human, and is therefore out of scope here.
- * @module @deepseek-ai/dsh-experience-runner/integrity
+ * @module @cbhdyl/dsh-test-observatory/experience/integrity
  */
 import type { OverlayRect } from './annotate.ts'
 

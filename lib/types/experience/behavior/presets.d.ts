@@ -8,7 +8,7 @@
  * one on a phone with a poor connection. `neutral` reproduces the behaviour an
  * undeclared journey had before policies existed, so existing configurations
  * keep working unchanged.
- * @module @deepseek-ai/dsh-experience-runner/behavior/presets
+ * @module @cbhdyl/dsh-test-observatory/experience/behavior/presets
  */
 import type { PersonaBehavior } from './types.ts';
 /** The built-in policies, keyed by preset id. */

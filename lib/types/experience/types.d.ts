@@ -2,7 +2,7 @@
  * Human-simulation experience model: the personas, journeys, evidence and
  * findings one browser run produces, plus the rule-based scoring inputs.
  * Every field is JSON-compatible so a report can embed the model directly.
- * @module @deepseek-ai/dsh-experience-runner/types
+ * @module @cbhdyl/dsh-test-observatory/experience/types
  */
 import type { ElementEvidence } from './geometry.ts';
 import type { BehaviorOverride, PersonaBehavior } from './behavior/types.ts';

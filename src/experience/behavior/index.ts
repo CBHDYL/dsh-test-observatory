@@ -5,7 +5,7 @@
  * is explicit and fails loudly on an unknown preset, because a typo that
  * silently fell back to `neutral` would make a persona claim behaviour it does
  * not have.
- * @module @deepseek-ai/dsh-experience-runner/behavior
+ * @module @cbhdyl/dsh-test-observatory/experience/behavior
  */
 import { BEHAVIOR_PRESETS, presetById } from './presets.ts'
 import type { BehaviorOverride, PersonaBehavior } from './types.ts'

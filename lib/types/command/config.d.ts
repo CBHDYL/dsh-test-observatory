@@ -2,7 +2,7 @@
  * Suite-configuration loading and validation. The configuration is an external
  * input (a file a human wrote), so every field is validated here rather than
  * trusted: a malformed document fails with a message naming the exact problem.
- * @module @deepseek-ai/dsh-command-test/config
+ * @module @cbhdyl/dsh-test-observatory/command/config
  */
 import type { SuiteConfig } from './types.ts';
 /** A configuration problem a human must fix; never an internal failure. */

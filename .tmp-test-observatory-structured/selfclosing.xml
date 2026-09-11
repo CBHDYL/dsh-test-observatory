@@ -1,0 +1,1 @@
+<testsuite><testcase name="selfclosing"><failure message="assert 1 == 2"/></testcase></testsuite>

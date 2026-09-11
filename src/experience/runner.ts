@@ -3,7 +3,7 @@
  * real headless Chromium, settle every step, and capture the evidence the
  * report shows. The launcher is a module seam so the runner is testable
  * without a browser.
- * @module @deepseek-ai/dsh-experience-runner/runner
+ * @module @cbhdyl/dsh-test-observatory/experience/runner
  */
 
 import { chromium, type Browser, type Page } from 'playwright-core'

@@ -5,7 +5,7 @@
  * built-in assertion library. Self-contained: subprocess execution goes
  * directly through node:child_process rather than a shell capability seam,
  * mirroring how dsh-tool-fs uses node:fs directly.
- * @module @deepseek-ai/dsh-tool-test-runner
+ * @module @cbhdyl/dsh-test-observatory/tool
  */
 import type { Context } from '@deepseek-ai/cordis';
 export declare const name = "tool-test-runner";

@@ -5,7 +5,7 @@
  * and, when a finding's region was measured, a marked image. The clean image is
  * what the integrity audit reasons about and what a reader can compare against,
  * so a mark can never be mistaken for something the page rendered.
- * @module @deepseek-ai/dsh-experience-runner/capture
+ * @module @cbhdyl/dsh-test-observatory/experience/capture
  */
 import type { Page } from 'playwright-core'
 import { annotate, overlayPresent } from './annotate.ts'

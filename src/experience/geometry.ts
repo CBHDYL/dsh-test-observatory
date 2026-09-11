@@ -4,7 +4,7 @@
  * screenshot instead of only naming it in prose.
  *
  * The shapes are plain data so a serialized in-page function can return them.
- * @module @deepseek-ai/dsh-experience-runner/geometry
+ * @module @cbhdyl/dsh-test-observatory/experience/geometry
  */
 
 /** Coordinate space a {@link ElementBox} is expressed in. */

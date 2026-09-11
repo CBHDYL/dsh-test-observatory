@@ -3,7 +3,7 @@
  * Test Observatory HTML report. The command is the human entry point; the
  * report renderer owns the document, and this package owns configuration
  * loading, execution and where the file lands.
- * @module @deepseek-ai/dsh-command-test
+ * @module @cbhdyl/dsh-test-observatory/command
  */
 
 import { mkdir, writeFile } from 'node:fs/promises'

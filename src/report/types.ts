@@ -3,7 +3,7 @@
  * facts one rendered report can show. Every field is JSON-compatible so the
  * renderer can embed the whole model into the document without transformation.
  *
- * @module @deepseek-ai/dsh-report-observatory/types
+ * @module @cbhdyl/dsh-test-observatory/report/types
  */
 
 /** Outcome of one executed test case. */

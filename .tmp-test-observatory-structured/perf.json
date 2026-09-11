@@ -1,0 +1,1 @@
+{"results":[{"name":"latency","metric":"http_req_duration","value":240,"unit":"ms","threshold":200,"direction":"max","p50":100,"p95":220,"p99":300,"throughput":42}]}

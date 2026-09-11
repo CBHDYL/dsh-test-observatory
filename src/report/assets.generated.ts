@@ -1,7 +1,7 @@
 /**
  * GENERATED - do not edit by hand. Extracted from the approved Test Observatory
  * prototype so the shipped renderer and the reviewed design cannot drift.
- * @module @deepseek-ai/dsh-report-observatory/assets
+ * @module @cbhdyl/dsh-test-observatory/report/assets
  */
 
 export const REPORT_STYLE = `

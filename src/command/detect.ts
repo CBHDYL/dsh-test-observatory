@@ -2,7 +2,7 @@
  * Project detection for `/test auto`: read the working directory's manifests and
  * propose the suite declaration a project of that shape would want. Detection
  * only proposes commands the project already declares; it never invents one.
- * @module @deepseek-ai/dsh-command-test/detect
+ * @module @cbhdyl/dsh-test-observatory/command/detect
  */
 
 import { readFile } from 'node:fs/promises'

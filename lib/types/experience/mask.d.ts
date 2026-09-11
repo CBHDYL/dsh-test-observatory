@@ -6,7 +6,7 @@
  * capture. Masking hides those regions for the duration of one capture and
  * restores them afterwards, so the page itself is never modified in a lasting
  * way.
- * @module @deepseek-ai/dsh-experience-runner/mask
+ * @module @cbhdyl/dsh-test-observatory/experience/mask
  */
 import type { Page } from 'playwright-core';
 /** Handle that restores the elements a mask hid. */

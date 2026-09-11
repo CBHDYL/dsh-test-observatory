@@ -9,7 +9,7 @@
  * Only findings measured in the viewport space can be drawn, because a viewport
  * screenshot shares that space. Anything else is skipped rather than drawn in
  * the wrong place.
- * @module @deepseek-ai/dsh-experience-runner/annotate
+ * @module @cbhdyl/dsh-test-observatory/experience/annotate
  */
 import type { Page } from 'playwright-core';
 import type { ElementEvidence } from './geometry.ts';

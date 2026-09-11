@@ -1,0 +1,1 @@
+<testsuite><testcase name="t1" classname="tests.test_foo.TestBar" time="0.1"/><testcase name="t2" classname="unit" time="0.1"/><testcase name="t3" classname="tests.test_foo" time="0.1"/></testsuite>

@@ -1,0 +1,1 @@
+{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"ruff"}},"results":[{"ruleId":"F401","level":"warning","message":{"text":"imported but unused"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/app.py"},"region":{"startLine":3}}}]}]}]}

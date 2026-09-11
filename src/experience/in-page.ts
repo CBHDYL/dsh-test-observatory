@@ -16,7 +16,7 @@
  *
  * {@link drawsFocusIndicator} is self-contained by contract: it closes over
  * nothing, so {@link serializeInspection} can embed it in another function.
- * @module @deepseek-ai/dsh-experience-runner/in-page
+ * @module @cbhdyl/dsh-test-observatory/experience/in-page
  */
 import type { Page } from 'playwright-core'
 

@@ -10,7 +10,7 @@
  * The inspection itself is a self-contained function: it is serialized into
  * the page by Playwright, so it closes over nothing, and it is unit-tested
  * directly against a DOM.
- * @module @deepseek-ai/dsh-experience-runner/visual
+ * @module @cbhdyl/dsh-test-observatory/experience/visual
  */
 import type { Page } from 'playwright-core';
 import type { ElementEvidence } from './geometry.ts';

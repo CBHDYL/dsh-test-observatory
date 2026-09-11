@@ -9,7 +9,7 @@
  *
  * Conditions are applied per page and removed with it, so one slow persona never
  * degrades another's journey.
- * @module @deepseek-ai/dsh-experience-runner/behavior/environment
+ * @module @cbhdyl/dsh-test-observatory/experience/behavior/environment
  */
 import type { Page } from 'playwright-core';
 import type { EnvironmentPolicy } from './types.ts';

@@ -6,7 +6,7 @@
  * actually received focus along the way, so a target that cannot be reached
  * within the budget becomes a finding instead of a silent failure — which is
  * exactly the class of defect an automated rule scan cannot detect.
- * @module @deepseek-ai/dsh-experience-runner/behavior/keyboard
+ * @module @cbhdyl/dsh-test-observatory/experience/behavior/keyboard
  */
 import type { Page } from 'playwright-core';
 /** What one focus step landed on. */

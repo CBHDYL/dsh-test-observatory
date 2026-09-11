@@ -11,7 +11,7 @@
  * what the page does with it; it never asserts that a vulnerability exists,
  * because whether the application neutralised the value is the finding, not the
  * premise.
- * @module @deepseek-ai/dsh-experience-runner/behavior/input
+ * @module @cbhdyl/dsh-test-observatory/experience/behavior/input
  */
 import { BOUNDARY_VALUES } from './types.ts'
 import type { InputVariant, PersonaBehavior } from './types.ts'

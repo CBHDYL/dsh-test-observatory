@@ -7,7 +7,7 @@
  * still be unusable without a pointer. Each finding states how it was observed,
  * because the focus-indicator check is a heuristic and the reader has to know
  * that, not just the verdict.
- * @module @deepseek-ai/dsh-experience-runner/keyboard-checks
+ * @module @cbhdyl/dsh-test-observatory/experience/keyboard-checks
  */
 import type { Page } from 'playwright-core';
 import type { VisualViolation } from './visual.ts';

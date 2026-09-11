@@ -1,0 +1,1 @@
+{"suites":[{"title":"media.spec.ts","specs":[{"title":"records","tests":[{"status":"expected","results":[{"status":"passed","attachments":[{"name":"clip","contentType":"video/webm","path":"clip.webm"},{"name":"log","contentType":"text/plain","path":"run.log"},{"name":"no path","contentType":"text/plain"}]}]}]}]}]}

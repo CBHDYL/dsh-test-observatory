@@ -1,7 +1,7 @@
 /**
  * Map a settled human-simulation run into the report model's experience
  * section: score, persona cards, journey rails, evidence gallery and findings.
- * @module @deepseek-ai/dsh-command-test/experience
+ * @module @cbhdyl/dsh-test-observatory/command/experience
  */
 
 import { scoreRun } from '../experience/index.ts'
