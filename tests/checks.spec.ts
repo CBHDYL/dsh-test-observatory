@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { checkVisual } from '../src/experience/visual.ts'
 import { checkAccessibility } from '../src/experience/a11y.ts'
 import { scoreRun } from '../src/experience/scoring.ts'
+import { DEFAULT_BEHAVIOR } from '../src/experience/behavior/index.ts'
 import type { ExperienceRun, JourneyOutcome } from '../src/experience/types.ts'
 
 /** A page double that runs the serialized inspection against the real jsdom DOM. */
@@ -20,6 +21,8 @@ function pageResolving(value: unknown) {
 /** Build a passing journey for score fixtures. */
 function journey(persona: string): JourneyOutcome {
   return {
+    behavior: DEFAULT_BEHAVIOR,
+    behaviorDimensions: [],
     persona, device: 'Desktop', name: 'task', passed: true,
     steps: [{ label: 's', state: 'PASS', durationMs: 10 }],
   }

@@ -73,6 +73,8 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
       ? 0
       : Math.round((journey.steps.filter(step => step.state === 'PASS').length / journey.steps.length) * 100),
     headline: journey.passed ? 'Completed' : 'Blocked',
+    behaviorId: journey.behavior.id,
+    ...(journey.behaviorDimensions.length === 0 ? {} : { behaviorDimensions: journey.behaviorDimensions }),
   }))
   const journeys: Journey[] = run.journeys.map(journey => ({
     personaId: personaId(journey.persona),

@@ -133,6 +133,10 @@ export interface Persona {
     readonly completionPercent: number;
     /** One-line summary of the dominant finding. */
     readonly headline: string;
+    /** The behaviour policy this persona ran under, or absent for a neutral run. */
+    readonly behaviorId?: string;
+    /** What that policy changes, such as `keyboard-only` or `slow3g`. */
+    readonly behaviorDimensions?: readonly string[];
 }
 /** One step of a persona journey. */
 export interface JourneyStep {

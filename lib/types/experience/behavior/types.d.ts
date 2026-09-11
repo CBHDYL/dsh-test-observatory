@@ -14,10 +14,15 @@
  * a population.
  * @module @deepseek-ai/dsh-experience-runner/behavior/types
  */
+/**
+ * The variant names an input can carry. `declared` marks the value the journey
+ * itself supplied, so it is never confused with the `empty` boundary variant.
+ */
+export type InputVariant = 'declared' | 'empty' | 'whitespace' | 'veryLong' | 'emoji' | 'rtl' | 'html' | 'sqlLike';
 /** One boundary input a policy may substitute for declared text. */
 export interface BoundaryInput {
     /** Variant name, recorded on any finding it produces. */
-    readonly kind: 'empty' | 'whitespace' | 'veryLong' | 'emoji' | 'rtl' | 'html' | 'sqlLike';
+    readonly kind: Exclude<InputVariant, 'declared'>;
 }
 /** How much and what kind of input a persona produces. */
 export interface InputPolicy {

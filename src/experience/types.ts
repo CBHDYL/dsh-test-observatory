@@ -6,6 +6,7 @@
  */
 
 import type { ElementEvidence } from './geometry.ts'
+import type { BehaviorOverride, PersonaBehavior } from './behavior/types.ts'
 import type { CaptureDefect } from './integrity.ts'
 
 /** One declared browser interaction inside a journey step. */
@@ -40,6 +41,12 @@ export interface JourneySpec {
   readonly viewport?: { readonly width: number; readonly height: number }
   /** Ordered steps. */
   readonly steps: readonly JourneyStepSpec[]
+  /**
+   * The policy this persona runs under. A preset id, or a preset plus overrides;
+   * absent means the neutral policy, which is the behaviour an undeclared
+   * journey had before policies existed.
+   */
+  readonly behavior?: string | BehaviorOverride
 }
 
 /** One captured screenshot, carried as a data URI so the report stays a single file. */
@@ -100,6 +107,12 @@ export interface JourneyOutcome {
   readonly steps: readonly StepOutcome[]
   /** Whether every step passed. */
   readonly passed: boolean
+  /** The resolved policy this journey ran under. */
+  readonly behavior: PersonaBehavior
+  /** The dimensions that policy changes, for the report's persona card. */
+  readonly behaviorDimensions: readonly string[]
+  /** Conditions the browser actually emulated, when any were applied. */
+  readonly appliedEnvironment?: readonly string[]
 }
 
 /** One check finding recorded against a journey. */

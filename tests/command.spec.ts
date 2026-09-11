@@ -6,6 +6,7 @@ import { SuiteConfigError, loadSuiteConfig, parseSuiteConfig } from '../src/comm
 import { buildReportModel, runCase, truncate, MAX_CAPTURED_CHARS } from '../src/command/runner.ts'
 import { describeDetection, detectProject } from '../src/command/detect.ts'
 import { personaId, toExperienceSection } from '../src/command/experience.ts'
+import { DEFAULT_BEHAVIOR } from '../src/experience/behavior/index.ts'
 import type { CaseOutcome } from '../src/command/runner.ts'
 
 let scratch: string | undefined
@@ -216,8 +217,8 @@ describe('toExperienceSection', () => {
       shots: [],
       checks: [],
       journeys: [
-        { persona: '首次访问用户', device: 'Desktop', name: '结账', passed: true, steps: [{ label: '打开', state: 'PASS' as const, durationMs: 10 }] },
-        { persona: '熟练用户', device: 'Desktop', name: '批量下单', passed: false, steps: [{ label: '提交', state: 'FAIL' as const, durationMs: 10, error: '超时' }] },
+        { persona: '首次访问用户', device: 'Desktop', name: '结账', passed: true, behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [], steps: [{ label: '打开', state: 'PASS' as const, durationMs: 10 }] },
+        { persona: '熟练用户', device: 'Desktop', name: '批量下单', passed: false, behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [], steps: [{ label: '提交', state: 'FAIL' as const, durationMs: 10, error: '超时' }] },
       ],
     }
     const section = toExperienceSection(run)

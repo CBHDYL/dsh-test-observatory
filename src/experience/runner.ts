@@ -8,8 +8,11 @@
 
 import { chromium, type Browser, type Page } from 'playwright-core'
 import type { CapturedShot, CheckFinding, ExperienceRun, JourneyAction, JourneyChecks, JourneyOutcome, JourneySpec, StepOutcome } from './types.ts'
+import type { PersonaBehavior } from './behavior/types.ts'
 import { checkAccessibility } from './a11y.ts'
 import { checkKeyboard, probeOpenDialog } from './keyboard-checks.ts'
+import { applyEnvironment } from './behavior/environment.ts'
+import { behaviorDimensions, resolveBehavior } from './behavior/index.ts'
 import { MAX_SHOT_BYTES as MAX_SHOT_BYTES_LIMIT, captureEvidence } from './capture.ts'
 import type { Annotation } from './annotate.ts'
 import { checkVisual } from './visual.ts'
@@ -152,6 +155,8 @@ async function runJourney(
   retries: number,
   settleTimeoutMs: number,
   setActiveStep: (label: string) => void,
+  behavior: PersonaBehavior,
+  appliedEnvironment: readonly string[],
 ): Promise<JourneyOutcome> {
   const steps: StepOutcome[] = []
   let blocked = false
@@ -195,6 +200,9 @@ async function runJourney(
     name: spec.name,
     steps,
     passed: steps.every(step => step.state === 'PASS'),
+    behavior,
+    behaviorDimensions: behaviorDimensions(behavior),
+    ...(appliedEnvironment.length === 0 ? {} : { appliedEnvironment }),
   }
 }
 
@@ -288,7 +296,10 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
     for (const spec of options.journeys) {
       if (options.signal?.aborted === true) throw new Error('experience run cancelled')
       const viewport = spec.viewport ?? DEFAULT_VIEWPORT
+      const behavior = resolveBehavior(spec.behavior)
       const page = await browser.newPage({ viewport })
+      // Conditions belong to this page only, and are lifted before it closes.
+      const environment = await applyEnvironment(page, behavior.environment)
       const meta = [spec.device, String(viewport.width) + 'x' + String(viewport.height)].join(' · ')
       let activeStepLabel = ''
       const capture = async (caption: string, category: CapturedShot['category']): Promise<string | undefined> => {
@@ -309,7 +320,12 @@ export async function runExperience(options: RunOptions): Promise<ExperienceRun>
         })
         return id
       }
-      const journey = await runJourney(page, spec, async (caption, category) => capture(caption, category), retries, settleTimeoutMs, label => { activeStepLabel = label })
+      let journey: JourneyOutcome
+      try {
+        journey = await runJourney(page, spec, async (caption, category) => capture(caption, category), retries, settleTimeoutMs, label => { activeStepLabel = label }, behavior, environment.applied)
+      } finally {
+        await environment.restore()
+      }
       journeys.push(journey)
       if (options.visualChecks !== false || options.accessibilityChecks !== false) {
         // A check reads the page after the journey; if the page is still moving,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SCORE_DIMENSIONS, SLOW_STEP_MS, bandFor, scoreRun } from '../src/experience/scoring.ts'
 import { launchChromium, runExperience } from '../src/experience/runner.ts'
+import { DEFAULT_BEHAVIOR } from '../src/experience/behavior/index.ts'
 import type { ExperienceRun, JourneyOutcome } from '../src/experience/types.ts'
 
 /** The in-page evaluator every capture double needs: it reports the viewport. */
@@ -15,6 +16,8 @@ const viewportEvaluator = async (expression: unknown, ...args: unknown[]): Promi
 /** Build one settled journey. */
 function journey(persona: string, states: readonly ('PASS' | 'FAIL' | 'BLOCKED')[], durationMs = 100): JourneyOutcome {
   return {
+    behavior: DEFAULT_BEHAVIOR,
+    behaviorDimensions: [],
     persona,
     device: 'Desktop',
     name: persona + ' task',

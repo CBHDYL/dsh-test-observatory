@@ -10,9 +10,11 @@
 import { BEHAVIOR_PRESETS, presetById } from './presets.ts'
 import type { BehaviorOverride, PersonaBehavior } from './types.ts'
 
-export type { BehaviorOverride, BoundaryInput, EnvironmentPolicy, InputPolicy, ModalityPolicy, PersonaBehavior, RecoveryPolicy, TimingPolicy } from './types.ts'
+export type { BehaviorOverride, BoundaryInput, EnvironmentPolicy, InputPolicy, InputVariant, ModalityPolicy, PersonaBehavior, RecoveryPolicy, TimingPolicy } from './types.ts'
 export { BOUNDARY_VALUES, VERY_LONG_LENGTH } from './types.ts'
 export { BEHAVIOR_PRESETS, BEHAVIOR_PRESET_IDS, presetById } from './presets.ts'
+export { duplicatesSubmit, pacingOf, planInputs } from './input.ts'
+export type { PlannedInput } from './input.ts'
 
 /** The policy used when a journey declares no behaviour at all. */
 export const DEFAULT_BEHAVIOR: PersonaBehavior = BEHAVIOR_PRESETS['neutral'] as PersonaBehavior
