@@ -121,6 +121,29 @@ describe('history write failure', () => {
   })
 })
 
+describe('history persistence failure', () => {
+  it('rolls back its temporary file when the write cannot be completed', async () => {
+    const directory = await scratch()
+    // A directory where the history file must go: the atomic rename target is
+    // not replaceable, so persistence fails after the temporary file exists.
+    const blocked = join(directory, 'history.json')
+    const { mkdir } = await import('node:fs/promises')
+    await mkdir(blocked, { recursive: true })
+    await writeFile(join(blocked, 'occupant'), 'x')
+    const model = {
+      meta: { project: 'p', branch: '', commit: '', environment: 'local', runAt: 'now', runId: 'r' },
+      verdict: { score: 1, headline: '', label: '', summary: '', confidence: '', risk: '' },
+      kpis: [],
+      summary: { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0, durationSeconds: 0, coveragePercent: null },
+      trend: [], causes: [], slowest: [], timeline: [], regressions: [], recovered: [],
+      tests: [{ name: 't', path: 'p.ts', status: 'passed' as const, suite: 'S', durationSeconds: 1, owner: 'O' }],
+    }
+    await expect(projectHistory(blocked, model)).rejects.toThrow()
+    const { readdir } = await import('node:fs/promises')
+    expect((await readdir(directory)).filter(name => name.includes('.tmp-'))).toEqual([])
+  })
+})
+
 describe('report section stripping', () => {
   const minimal = (overrides: Partial<ReportModel>): ReportModel => ({
     meta: { project: 'p', branch: '', commit: '', environment: 'local', runAt: 'now', runId: 'r' },

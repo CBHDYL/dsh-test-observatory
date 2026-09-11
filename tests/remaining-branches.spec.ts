@@ -122,6 +122,38 @@ describe('command run with history enabled', () => {
   })
 })
 
+describe('snapshot counts through the command', () => {
+  it('states what the baselines did, and says nothing without any', async () => {
+    const directory = await scratch()
+    const withSnapshots = JSON.stringify({
+      numTotalTests: 1,
+      snapshot: { matched: 1, unmatched: 0, added: 0, updated: 0, unchecked: 0, total: 1, filesUnmatched: 0 },
+      testResults: [{ name: '/src/a.test.ts', assertionResults: [{ fullName: 'renders', status: 'passed' }] }],
+    })
+    await writeFile(join(directory, 'vitest.json'), withSnapshots)
+    await writeFile(join(directory, 'suite.yml'), [
+      'report:', '  historyPath: false', '  outputPath: out/report.html',
+      'cases:', '  - name: Unit', '    command: "true"', '    result:', '      format: vitest', '      path: vitest.json', '',
+    ].join('\n'))
+    const result = await mountCommand(directory)('suite.yml')
+    expect(result.kind).toBe('success')
+    const document = await readFile(join(directory, 'out/report.html'), 'utf8')
+    expect(document).toContain('Snapshots: 1 compared.')
+  })
+
+  it('adds nothing to the report when the artifact declares no snapshot block', async () => {
+    const directory = await scratch()
+    await writeFile(join(directory, 'vitest.json'), JSON.stringify({ testResults: [{ name: '/src/a.test.ts', assertionResults: [{ fullName: 'renders', status: 'passed' }] }] }))
+    await writeFile(join(directory, 'suite.yml'), [
+      'report:', '  historyPath: false', '  outputPath: out/report.html',
+      'cases:', '  - name: Unit', '    command: "true"', '    result:', '      format: vitest', '      path: vitest.json', '',
+    ].join('\n'))
+    await mountCommand(directory)('suite.yml')
+    const document = await readFile(join(directory, 'out/report.html'), 'utf8')
+    expect(document).not.toContain('"snapshots"')
+  })
+})
+
 describe('report placeholder stripping', () => {
   const minimal = (overrides: Partial<ReportModel>): ReportModel => ({
     meta: { project: 'p', branch: '', commit: '', environment: 'local', runAt: 'now', runId: 'r' },
