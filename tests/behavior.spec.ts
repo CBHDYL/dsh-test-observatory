@@ -48,8 +48,23 @@ describe('behavior presets', () => {
   })
 
   it('gives the mobile persona a throttled environment', () => {
-    expect(presetById('mobile')?.environment.network).toBe('slow3g')
+    // A constrained profile, not the harshest one: the engine can only shape
+    // bandwidth, so the several-hundred-millisecond round trip a congested cell
+    // network adds is not something a locally served app can be measured against.
+    expect(presetById('mobile')?.environment.network).toBe('slow4g')
     expect(presetById('mobile')?.environment.cpuThrottle).toBeGreaterThan(1)
+  })
+
+  it('gives every throttled preset enough budget to finish its own profile', () => {
+    // A preset whose conditions outlast its own settle budget would fail for a
+    // reason the persona never chose.
+    const budgets = { offline: 5_000, slow3g: 60_000, fast3g: 30_000, slow4g: 20_000 } as const
+    for (const id of BEHAVIOR_PRESET_IDS) {
+      const preset = presetById(id) as PersonaBehavior
+      const profile = preset.environment.network
+      if (profile === undefined) continue
+      expect(preset.timing.settleBudgetMs).toBeGreaterThanOrEqual(budgets[profile])
+    }
   })
 
   it('gives the error-prone persona boundary inputs and a reload path', () => {

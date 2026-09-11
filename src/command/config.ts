@@ -8,6 +8,7 @@
 import { readFile } from 'node:fs/promises'
 import { parse as parseYaml } from 'yaml'
 import type { JourneySpec, SuiteCase, SuiteConfig, SuiteReportOptions } from './types.ts'
+import type { BehaviorOverride, EnvironmentPolicy, InputPolicy, ModalityPolicy, RecoveryPolicy, TimingPolicy } from '../experience/behavior/types.ts'
 
 /** A configuration problem a human must fix; never an internal failure. */
 export class SuiteConfigError extends Error {
@@ -154,6 +155,34 @@ function toReportOptions(raw: unknown): SuiteReportOptions {
 }
 
 /**
+ * Validate a declared persona behaviour: a preset id, or a preset plus overrides.
+ * @param raw - the raw behaviour value.
+ * @param where - the position description used in the error.
+ * @returns the validated declaration.
+ */
+function toBehavior(raw: unknown, where: string): string | BehaviorOverride {
+  if (typeof raw === 'string') {
+    if (raw.trim().length === 0) throw new SuiteConfigError(`${where}.behavior: must be a non-empty string`)
+    return raw
+  }
+  const record = asRecord(raw)
+  if (record === null) throw new SuiteConfigError(`${where}.behavior: must be a preset name or a mapping`)
+  const preset = requireString(record, 'preset', `${where}.behavior`)
+  const override: { preset: string; input?: InputPolicy; timing?: TimingPolicy; modality?: ModalityPolicy; environment?: EnvironmentPolicy; recovery?: RecoveryPolicy } = { preset }
+  const sections = ['input', 'timing', 'modality', 'environment', 'recovery'] as const
+  for (const section of sections) {
+    const value = record[section]
+    if (value === undefined) continue
+    const mapping = asRecord(value)
+    if (mapping === null) throw new SuiteConfigError(`${where}.behavior.${section}: must be a mapping`)
+    // The policy shapes are validated by the behaviour module at resolution time;
+    // here only the container is checked, so a new policy field needs no edit.
+    Object.assign(override, { [section]: mapping })
+  }
+  return override as BehaviorOverride
+}
+
+/**
  * Validate one declared journey and its steps.
  * @param raw - the raw journey value.
  * @param index - zero-based position, used in the error.
@@ -173,6 +202,8 @@ function toJourney(raw: unknown, index: number): JourneySpec {
   if (!Array.isArray(rawSteps) || rawSteps.length === 0) {
     throw new SuiteConfigError(`${where}: "steps" must be a non-empty list`)
   }
+  const behavior = record['behavior']
+  const declared = behavior === undefined ? undefined : toBehavior(behavior, where)
   const viewport = record['viewport']
   if (viewport !== undefined) {
     const box = asRecord(viewport)
@@ -187,6 +218,7 @@ function toJourney(raw: unknown, index: number): JourneySpec {
     persona,
     name,
     device,
+    ...(declared === undefined ? {} : { behavior: declared }),
     ...(viewport === undefined ? {} : { viewport: viewport as { width: number; height: number } }),
     steps: rawSteps.map((entry, stepIndex) => toStep(entry, `${where}.steps[${stepIndex}]`)),
   }

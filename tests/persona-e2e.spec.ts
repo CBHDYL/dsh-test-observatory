@@ -71,12 +71,12 @@ describe.skipIf(executable === undefined)('personas against the fixture app', ()
   it('records what each policy changes', () => {
     expect(journeyOf('Neutral')?.behaviorDimensions).toEqual([])
     expect(journeyOf('Keyboard')?.behaviorDimensions).toContain('keyboard-only')
-    expect(journeyOf('Mobile')?.behaviorDimensions).toContain('slow3g')
+    expect(journeyOf('Mobile')?.behaviorDimensions).toContain('slow4g')
     expect(journeyOf('Impatient')?.behaviorDimensions).toContain('double-submit')
   })
 
   it('emulates conditions only for the persona that declares them', () => {
-    expect(journeyOf('Mobile')?.appliedEnvironment).toEqual(['slow3g', 'cpu×4'])
+    expect(journeyOf('Mobile')?.appliedEnvironment).toEqual(['slow4g', 'cpu×4'])
     expect(journeyOf('Neutral')?.appliedEnvironment).toBeUndefined()
     expect(journeyOf('Keyboard')?.appliedEnvironment).toBeUndefined()
   })
