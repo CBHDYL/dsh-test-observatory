@@ -318,6 +318,12 @@ export interface ReportSummary {
   readonly durationSeconds: number
   /** Line coverage percentage, or null when not measured. */
   readonly coveragePercent: number | null
+  /**
+   * What the snapshot baselines did, when the run declared any. A mismatch and a
+   * freshly written baseline both appear here, because they call for opposite
+   * responses and a bare failed test cannot tell them apart.
+   */
+  readonly snapshots?: string
 }
 
 /** Run identity shown in the report header. */

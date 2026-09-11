@@ -15,7 +15,9 @@ import { SuiteConfigError, loadSuiteConfig } from './config.ts'
 import { buildReportModel, runCase } from './runner.ts'
 import { toExperienceSection } from './experience.ts'
 import { describeDetection, detectProject } from './detect.ts'
-import { parseStructuredResult } from './structured.ts'
+import { readStructuredResult } from './structured.ts'
+import { describeSnapshots } from './snapshots.ts'
+import type { SnapshotCounts } from './snapshots.ts'
 import { projectHistory } from './history.ts'
 import { runExperience } from '../experience/index.ts'
 
@@ -75,14 +77,25 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
     ? undefined
     : toExperienceSection(await runExperience({ journeys: config.journeys, signal: invocation.signal }))
   const structuredTests = []
+  const snapshotCounts = []
   for (const outcome of outcomes) {
     if (outcome.testCase.result === undefined) continue
     try {
-      structuredTests.push(...await parseStructuredResult(outcome.testCase.result, outcome.testCase, workspace))
+      const read = await readStructuredResult(outcome.testCase.result, outcome.testCase, workspace)
+      structuredTests.push(...read.tests)
+      if (read.snapshots !== undefined) snapshotCounts.push(read.snapshots)
     } catch (error: unknown) {
       return { kind: 'error', text: `could not read structured result for ${outcome.testCase.name}: ${error instanceof Error ? error.message : String(error)}` }
     }
   }
+  const snapshotSentence = snapshotCounts.length === 0 ? undefined : describeSnapshots(snapshotCounts.reduce<SnapshotCounts>((total, counts) => ({
+    matched: total.matched + counts.matched,
+    added: total.added + counts.added,
+    unmatched: total.unmatched + counts.unmatched,
+    updated: total.updated + counts.updated,
+    unchecked: total.unchecked + counts.unchecked,
+    total: Math.max(total.total, counts.total),
+  }), { matched: 0, added: 0, unmatched: 0, updated: 0, unchecked: 0, total: 0 }))
   let model = buildReportModel(outcomes, {
     config,
     runAt: new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC',
@@ -92,6 +105,7 @@ async function execute(invocation: CommandInvocation): Promise<CommandResult> {
     environment: 'local',
     ...(experienceSection === undefined ? {} : { experienceSection }),
     ...(structuredTests.length === 0 ? {} : { structuredTests }),
+    ...(snapshotSentence === undefined ? {} : { snapshots: snapshotSentence }),
   })
   const historyPath = config.report?.historyPath
   if (historyPath !== false) {

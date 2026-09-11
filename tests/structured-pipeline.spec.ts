@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseSuiteConfig } from '../src/command/config.ts'
-import { parseStructuredResult } from '../src/command/structured.ts'
+import { parseStructuredResult, readStructuredResult } from '../src/command/structured.ts'
 
 const root = join(process.cwd(), '.tmp-test-observatory-pipeline')
 const base = { name: 'framework', command: 'true', owner: 'Quality' }
@@ -55,6 +55,22 @@ describe('structured result pipeline', () => {
     const path = await artifact('pytest.xml', '<testsuite><testcase name="fails" classname="tests.t" time="0.1"><failure message="assert 1 == 2"/></testcase></testsuite>')
     const rows = await parseStructuredResult({ format: 'pytest', path }, base, root)
     expect(rows[0]).toMatchObject({ status: 'failed', error: 'assert 1 == 2', path: 'tests/t.py' })
+  })
+
+  it('reads snapshot counts from a Jest-shaped report', async () => {
+    const path = await artifact('jest-snap.json', JSON.stringify({
+      numTotalTests: 2,
+      snapshot: { added: 0, matched: 1, unmatched: 1, updated: 0, unchecked: 2, total: 2, filesUnmatched: 0 },
+      testResults: [{ name: '/src/a.test.ts', assertionResults: [{ fullName: 'renders', status: 'failed' }] }],
+    }))
+    const read = await readStructuredResult({ format: 'jest', path }, base, root)
+    expect(read.snapshots).toMatchObject({ matched: 1, unmatched: 1, unchecked: 2 })
+    expect(read.tests).toHaveLength(1)
+  })
+
+  it('reports no snapshot counts for a format that carries none', async () => {
+    const path = await artifact('plain.json', JSON.stringify({ testResults: [{ assertionResults: [{ fullName: 'a', status: 'passed' }] }] }))
+    expect((await readStructuredResult({ format: 'jest', path }, base, root)).snapshots).toBeUndefined()
   })
 
   it('carries rerun attempts into the report row', async () => {

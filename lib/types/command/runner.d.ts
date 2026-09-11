@@ -80,6 +80,8 @@ export interface ReportInputs {
     readonly experienceSection?: ExperienceInputs;
     /** Parsed framework-level test rows, replacing command summary rows when present. */
     readonly structuredTests?: readonly ReportTest[];
+    /** What the snapshot baselines did, when the run declared any. */
+    readonly snapshots?: string;
 }
 /**
  * Build the report model from settled outcomes.

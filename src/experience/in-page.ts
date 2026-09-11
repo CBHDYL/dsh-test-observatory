@@ -28,10 +28,11 @@ import type { Page } from 'playwright-core'
 export function drawsFocusIndicator(style: CSSStyleDeclaration): boolean {
   // A colour may sit anywhere in a longer value, so it is found rather than
   // assumed to be the whole string.
+  // An absent colour states that none is drawn, so it is not treated as opaque:
+  // reading it either way would make a suppressed indicator look like a drawn one.
   const isTransparent = (value: string): boolean => {
     const text = value.trim().toLowerCase()
-    if (text === '' || text === 'none') return false
-    if (text === 'transparent') return true
+    if (text === '' || text === 'none' || text === 'transparent') return true
     const match = /rgba?\(([^)]*)\)/.exec(text)
     if (match !== null) {
       const parts = match[1]!.split(/[\s,/]+/).filter(part => part !== '')
@@ -50,7 +51,10 @@ export function drawsFocusIndicator(style: CSSStyleDeclaration): boolean {
   const shorthandPixels = shorthandWidthText?.[2] === undefined ? undefined : Number.parseFloat(shorthandWidthText[2])
   // A named width is always positive; a numeric one is only drawn when non-zero.
   const shorthandHasWidth = shorthandWidthText !== null && (shorthandPixels === undefined || shorthandPixels > 0)
-  const shorthandDrawn = shorthand !== '' && !shorthandSuppressed && shorthandHasWidth && !isTransparent(shorthand)
+  // The colour sits somewhere inside the shorthand, so every token is judged
+  // rather than the whole string.
+  const shorthandColorTransparent = shorthand.split(/\s+/).some(part => part === 'transparent' || /^rgba?\(/.test(part) && isTransparent(part))
+  const shorthandDrawn = shorthand !== '' && !shorthandSuppressed && shorthandHasWidth && !shorthandColorTransparent
   const longhandDrawn = style.outlineStyle !== 'none' && width > 0 && !isTransparent(style.outlineColor)
   const shadow = style.boxShadow === '' ? 'none' : String(style.boxShadow)
   return shorthandDrawn || longhandDrawn || (shadow !== 'none' && !isTransparent(shadow))

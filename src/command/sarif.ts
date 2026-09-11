@@ -50,13 +50,41 @@ function count(value: unknown): number | undefined {
 }
 
 /**
+ * Turn the location a scanner reports into a path a reader can compare with
+ * their own tree.
+ *
+ * Scanners report a URI, and several — Ruff among them — report an absolute
+ * `file://` one, which says nothing about where the file sits in the project.
+ * The workspace prefix is therefore stripped when the location is inside it, and
+ * a relative location is kept as it is.
+ * @param uri - the reported location.
+ * @param root - absolute workspace path, without a trailing separator.
+ * @returns a workspace-relative path, or the original when it is not inside.
+ */
+export function normaliseLocation(uri: string, root: string | undefined): string {
+  let path = uri
+  if (path.startsWith('file://')) {
+    try {
+      path = decodeURIComponent(new URL(path).pathname)
+    } catch {
+      path = path.slice('file://'.length)
+    }
+  }
+  if (root !== undefined && root.length > 0) {
+    const prefix = root.endsWith('/') ? root : root + '/'
+    if (path.startsWith(prefix)) return path.slice(prefix.length)
+  }
+  return path
+}
+
+/**
  * Parse a SARIF 2.1.0 document into findings.
  * @param value - the parsed JSON document.
  * @returns every finding the document reports.
  * @throws when the document is not SARIF, or declares a version this parser does
  *   not implement.
  */
-export function parseSarif(value: unknown): SarifFinding[] {
+export function parseSarif(value: unknown, workspace?: string): SarifFinding[] {
   const document = record(value)
   if (document === undefined || text(document['version']) === undefined) {
     throw new Error('the artifact is not a SARIF document: it declares no version')
@@ -83,7 +111,8 @@ export function parseSarif(value: unknown): SarifFinding[] {
       const physical = record(location?.['physicalLocation'])
       const artifact = record(physical?.['artifactLocation'])
       const region = record(physical?.['region'])
-      const file = text(artifact?.['uri'])
+      const rawFile = text(artifact?.['uri'])
+      const file = rawFile === undefined ? undefined : normaliseLocation(rawFile, workspace)
       const line = count(region?.['startLine'])
       findings.push({
         rule: ruleId,

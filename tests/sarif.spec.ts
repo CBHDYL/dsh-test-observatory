@@ -1,12 +1,38 @@
 // SARIF 2.1.0: the one findings format a standards body owns, and therefore the
 // one parser that reads linters and vulnerability scanners alike.
 import { describe, expect, it } from 'vitest'
-import { parseSarif } from '../src/command/sarif.ts'
+import { normaliseLocation, parseSarif } from '../src/command/sarif.ts'
 
 /** One minimal SARIF document wrapping the given results. */
 function sarif(results: readonly unknown[], version = '2.1.0', toolName = 'ruff'): unknown {
   return { version, runs: [{ tool: { driver: { name: toolName } }, results }] }
 }
+
+describe('normaliseLocation', () => {
+  it('strips the workspace prefix from an absolute file URI', () => {
+    expect(normaliseLocation('file:///home/me/app/src/a.py', '/home/me/app')).toBe('src/a.py')
+  })
+
+  it('keeps an absolute path when the workspace is unknown', () => {
+    expect(normaliseLocation('file:///home/me/app/src/a.py', undefined)).toBe('/home/me/app/src/a.py')
+  })
+
+  it('keeps a path outside the workspace absolute rather than inventing a relative one', () => {
+    expect(normaliseLocation('file:///elsewhere/a.py', '/home/me/app')).toBe('/elsewhere/a.py')
+  })
+
+  it('leaves an already relative location alone', () => {
+    expect(normaliseLocation('src/a.py', '/home/me/app')).toBe('src/a.py')
+  })
+
+  it('decodes an escaped character in the URI', () => {
+    expect(normaliseLocation('file:///home/me/app/src/a%20b.py', '/home/me/app')).toBe('src/a b.py')
+  })
+
+  it('falls back to the raw text when the URI cannot be parsed', () => {
+    expect(normaliseLocation('file://%', '/home/me/app')).toBe('%')
+  })
+})
 
 describe('parseSarif', () => {
   it('reads a result with its rule, level, message and location', () => {
@@ -17,6 +43,17 @@ describe('parseSarif', () => {
       locations: [{ physicalLocation: { artifactLocation: { uri: 'src/app.py' }, region: { startLine: 12 } } }],
     }]))
     expect(findings).toEqual([{ rule: 'F401', level: 'warning', message: 'imported but unused', file: 'src/app.py', line: 12 }])
+  })
+
+  it('reports an absolute scanner URI as a workspace-relative path', () => {
+    // Ruff reports file:// URIs; a report full of absolute paths describes the
+    // machine that ran the scan rather than the project.
+    const findings = parseSarif(sarif([{
+      ruleId: 'F401',
+      message: { text: 'm' },
+      locations: [{ physicalLocation: { artifactLocation: { uri: 'file:///home/me/app/backend/src/a.py' }, region: { startLine: 3 } } }],
+    }]), '/home/me/app')
+    expect(findings[0]?.file).toBe('backend/src/a.py')
   })
 
   it('falls back to the tool name when no rule is named', () => {

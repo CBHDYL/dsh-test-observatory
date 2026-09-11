@@ -131,6 +131,18 @@ describe('renderReport', () => {
     expect(html).toContain('@media print{[data-page]{display:block!important}.pages{display:none}}')
   })
 
+  it('states what the snapshot baselines did, and hides the note when there are none', () => {
+    const withSnapshots = renderReport({...fullModel(), summary: { ...fullModel().summary, snapshots: 'Snapshots: 1 compared, 2 did not match.' }})
+    expect(withSnapshots).toContain('id="snapshotNote"')
+    // The note renders through the client script, which reads the model field.
+    expect(withSnapshots).toContain("getElementById('snapshotNote')")
+    expect(withSnapshots).toContain('"snapshots":"Snapshots: 1 compared, 2 did not match."')
+    const without = renderReport(fullModel())
+    // The element stays so the script can hide it; a project with no snapshot
+    // tests never sees text in it.
+    expect(without).toContain('id="snapshotNote"')
+  })
+
   it('removes empty evidence and findings cards', () => {
     const model={...fullModel(),evidence:[],findings:[]};const html=renderReport(model);expect(html).not.toContain('id="evidenceGrid"');expect(html).not.toContain('id="findings"')
   })

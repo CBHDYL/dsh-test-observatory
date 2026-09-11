@@ -156,6 +156,8 @@ export interface ReportInputs {
   readonly experienceSection?: ExperienceInputs
   /** Parsed framework-level test rows, replacing command summary rows when present. */
   readonly structuredTests?: readonly ReportTest[]
+  /** What the snapshot baselines did, when the run declared any. */
+  readonly snapshots?: string
 }
 
 /**
@@ -202,7 +204,7 @@ export function buildReportModel(outcomes: readonly CaseOutcome[], inputs: Repor
       { label: 'Duration', value: formatDuration(durationSeconds), delta: 'wall clock' },
       { label: 'Failed', value: String(failed), delta: failed === 0 ? 'none' : 'needs review', ...(failed > 0 ? { worse: true } : {}) },
     ],
-    summary: { total, passed, failed, skipped, flaky, durationSeconds, coveragePercent: null },
+    summary: { total, passed, failed, skipped, flaky, durationSeconds, coveragePercent: null, ...(inputs.snapshots === undefined ? {} : { snapshots: inputs.snapshots }) },
     trend: [],
     causes: failed === 0
       ? []

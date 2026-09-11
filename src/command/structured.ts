@@ -4,6 +4,8 @@ import { resolve } from 'node:path'
 import type { ApiObservation, PerformanceObservation, ReportTest, TestAttachment, TestStatus } from '../report/types.ts'
 import { parseJUnitDocument } from './junit.ts'
 import { parseSarif } from './sarif.ts'
+import { readSnapshotCounts } from './snapshots.ts'
+import type { SnapshotCounts } from './snapshots.ts'
 import type { StructuredResultSpec, SuiteCase } from './types.ts'
 
 interface ParsedCase { name: string; path?: string; suite?: string; status: TestStatus; durationSeconds?: number; error?: string; attempts?: number; attachments?: readonly TestAttachment[]; api?: ApiObservation; performance?: PerformanceObservation }
@@ -101,8 +103,25 @@ function inferPytestPath(classname: string): string | undefined {
   return modulePathSegments.join('/') + '.py'
 }
 
-/** Read and parse one declared structured result artifact. */
-export async function parseStructuredResult(spec: StructuredResultSpec, testCase: SuiteCase, cwd: string): Promise<ReportTest[]> {
+/** Everything one artifact contributed to the report. */
+export interface StructuredResultRead {
+  /** Test-level rows the artifact produced. */
+  readonly tests: readonly ReportTest[]
+  /**
+   * Snapshot counts the artifact declared, when it declared any. A snapshot
+   * mismatch is otherwise indistinguishable from an ordinary failing test.
+   */
+  readonly snapshots?: SnapshotCounts
+}
+
+/**
+ * Read and parse one declared structured result artifact.
+ * @param spec - the declared format and path.
+ * @param testCase - the declaring case, supplying suite and owner defaults.
+ * @param cwd - the directory the path is resolved against.
+ * @returns the rows and any snapshot counts the artifact declared.
+ */
+export async function readStructuredResult(spec: StructuredResultSpec, testCase: SuiteCase, cwd: string): Promise<StructuredResultRead> {
   const source = await readFile(resolve(cwd, spec.path), 'utf8')
   const parsed: ParsedCase[] = spec.format === 'junit' || spec.format === 'pytest'
     ? parseJUnitDocument(source).map(entry => ({
@@ -118,7 +137,7 @@ export async function parseStructuredResult(spec: StructuredResultSpec, testCase
         const value: unknown = JSON.parse(source)
         if (spec.format === 'api') return parseApi(value)
         if (spec.format === 'performance') return parsePerformance(value)
-        if (spec.format === 'sarif') return parseSarif(value).map(finding => ({
+        if (spec.format === 'sarif') return parseSarif(value, cwd).map(finding => ({
           // A warning and an error both fail: a report that let them pass would
           // hide the findings the scan exists to surface. Notes are informational.
           name: finding.rule + (finding.file === undefined ? '' : ' · ' + finding.file + (finding.line === undefined ? '' : ':' + String(finding.line))),
@@ -133,5 +152,19 @@ export async function parseStructuredResult(spec: StructuredResultSpec, testCase
         return out
       })()
   if (parsed.length === 0) throw new Error(`structured result ${spec.path} contains no recognizable test results`)
-  return parsed.map(item => ({ name:item.name,path:item.path ?? (spec.format === 'pytest' && item.suite ? inferPytestPath(item.suite) ?? spec.path : spec.path),status:item.status,suite:item.suite||testCase.suite||spec.format,durationSeconds:item.durationSeconds??0,owner:testCase.owner??'Unassigned',framework:spec.format,...(item.error?{error:item.error}:{}),...(item.attempts?{attempts:item.attempts}:{}),...(item.attachments?.length?{attachments:item.attachments}:{}),...(item.api?{api:item.api}:{}),...(item.performance?{performance:item.performance}:{}) }))
+  const tests = parsed.map(item => ({ name:item.name,path:item.path ?? (spec.format === 'pytest' && item.suite ? inferPytestPath(item.suite) ?? spec.path : spec.path),status:item.status,suite:item.suite||testCase.suite||spec.format,durationSeconds:item.durationSeconds??0,owner:testCase.owner??'Unassigned',framework:spec.format,...(item.error?{error:item.error}:{}),...(item.attempts?{attempts:item.attempts}:{}),...(item.attachments?.length?{attachments:item.attachments}:{}),...(item.api?{api:item.api}:{}),...(item.performance?{performance:item.performance}:{}) }))
+  const snapshots = spec.format === 'jest' || spec.format === 'vitest' ? readSnapshotCounts(JSON.parse(source)) : undefined
+  return { tests, ...(snapshots === undefined ? {} : { snapshots }) }
+}
+
+/**
+ * Read one artifact and return only its rows.
+ * @param spec - the declared format and path.
+ * @param testCase - the declaring case.
+ * @param cwd - the directory the path is resolved against.
+ * @returns the test-level rows.
+ */
+export async function parseStructuredResult(spec: StructuredResultSpec, testCase: SuiteCase, cwd: string): Promise<ReportTest[]> {
+  const read = await readStructuredResult(spec, testCase, cwd)
+  return [...read.tests]
 }
