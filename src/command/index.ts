@@ -19,6 +19,7 @@ import { readStructuredResult } from './structured.ts'
 import { NARRATIVE_SYSTEM, applyNarrative, buildNarrativePrompt, llmNarrativeWriter, parseRunNarrative } from './narrative.ts'
 import { llmDecide } from '../experience/agent.ts'
 import { confidenceOf, decideRunVerdict } from '../experience/verdict.ts'
+import { verifyReport } from '../report/selfcheck.ts'
 import type { NarrativeLlm } from './narrative.ts'
 import type { ReportModel } from '../report/types.ts'
 import type { SuiteConfig } from './types.ts'
@@ -220,8 +221,19 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
     coverageKnown: model.summary.coveragePercent !== null,
     commit: model.meta.commit,
   }
+  // A trend, a regression and a recovery are all claims about two runs of the
+  // same code. Without a commit there is no way to know that, so the report
+  // states what this run did instead of comparing it with runs it cannot place.
+  if (model.meta.commit.length === 0 && (model.trend.length > 0 || model.regressions.length > 0 || model.recovered.length > 0)) {
+    model = { ...model, trend: [], regressions: [], recovered: [] }
+  }
+
   const runDecision = decideRunVerdict(verdictInputs)
   model = { ...model, verdict: { ...model.verdict, label: runDecision.verdict, confidence: confidenceOf(verdictInputs), reasons: [...runDecision.reasons] } }
+
+  // A report is a claim about a product, so it is checked against its own data
+  // before it is handed over rather than after somebody acts on it.
+  const violations = verifyReport(model)
 
   const annotated = await annotate(ctx, model, config, invocation.signal)
   model = annotated.model
@@ -238,7 +250,10 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
   const retriedCount = model.tests.filter(test => test.kind === 'test' && (test.attempts ?? 1) > 1).length
   const unstable = retriedCount === 0 ? '' : ` ${retriedCount} passed only on retry.`
   const findingLine = openFindings.length === 0 ? '' : ` ${openFindings.length} static-analysis result(s) need review, not tests.`
-  const headline = `${model.summary.passed}/${model.summary.total} tests passed.${unstable}${findingLine} Report: ${outputPath}${annotated.note}`
+  const selfCheck = violations.length === 0
+    ? ''
+    : ' The report contradicts itself: ' + violations.map(violation => violation.rule).join(', ') + '.'
+  const headline = `${model.summary.passed}/${model.summary.total} tests passed.${unstable}${findingLine} Report: ${outputPath}${annotated.note}${selfCheck}`
   const detail = failedTests.length === 0
     ? ''
     : `\nFailed: ${failedTests.map(test => test.name).join(', ')}`
