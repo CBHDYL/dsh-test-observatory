@@ -119,8 +119,16 @@ export interface RunVerdictInputs {
  */
 export function decideRunVerdict(inputs: RunVerdictInputs): VerdictResult<RunVerdict> {
   const reasons: string[] = []
+  // What the run did not establish does not become established because a test
+  // failed, and every other verdict names these. A blocked run names them too,
+  // or the same gap is disclosed under one verdict and hidden under another.
+  const limitations: string[] = []
+  if (!inputs.coverageKnown) limitations.push('coverage was not measured, so untested code is unknown')
+  if (inputs.commit.length === 0) limitations.push('the run recorded no commit, so it cannot be compared with a baseline')
+
   if (inputs.failingTests > 0) {
     reasons.push(String(inputs.failingTests) + ' test(s) did not produce their expected exit code')
+    reasons.push(...limitations)
     return { verdict: 'BLOCKED', reasons }
   }
   reasons.push('no executed test failed')
@@ -134,8 +142,7 @@ export function decideRunVerdict(inputs: RunVerdictInputs): VerdictResult<RunVer
   const failed = inputs.journeys.filter(journey => journey.verdict === 'FAIL')
   if (failed.length > 0) reasons.push(String(failed.length) + ' journey(s) failed: ' + failed.map(journey => journey.persona).join(', '))
 
-  if (!inputs.coverageKnown) reasons.push('coverage was not measured, so untested code is unknown')
-  if (inputs.commit.length === 0) reasons.push('the run recorded no commit, so it cannot be compared with a baseline')
+  reasons.push(...limitations)
 
   const capped = high.length > 0 || inconclusive.length > 0 || failed.length > 0 || !inputs.coverageKnown || inputs.commit.length === 0
   if (capped) return { verdict: 'NEEDS REVIEW', reasons }

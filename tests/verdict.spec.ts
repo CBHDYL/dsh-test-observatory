@@ -103,6 +103,19 @@ describe('run verdict', () => {
   it('lets a failing test outrank every other reason', () => {
     const result = decideRunVerdict(inputs({ failingTests: 1, coverageKnown: false, commit: '' }))
     expect(result.verdict).toBe('BLOCKED')
-    expect(result.reasons).toHaveLength(1)
+    expect(result.reasons[0]).toContain('did not produce their expected exit code')
+  })
+
+  it('states the limits that hold whatever the tests did', () => {
+    // A blocked run is the strongest verdict, not a licence to hide the gap the
+    // same run discloses under NEEDS REVIEW.
+    const result = decideRunVerdict(inputs({ failingTests: 1, coverageKnown: false, commit: '' }))
+    expect(result.reasons.join(' ')).toContain('coverage was not measured')
+    expect(result.reasons.join(' ')).toContain('no commit')
+  })
+
+  it('states no coverage limit when the run measured coverage', () => {
+    const result = decideRunVerdict(inputs({ failingTests: 1 }))
+    expect(result.reasons.join(' ')).not.toContain('coverage was not measured')
   })
 })
