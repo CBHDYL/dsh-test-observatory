@@ -68,7 +68,7 @@ describe('the shipped report script', () => {
 
   it('states the requirement, the fix and the observed selector for a finding', () => {
     const document = paint(model()).dom.window.document
-    const row = document.querySelector('#checks tbody tr')
+    const row = document.querySelector('#checks .finding-card')
     expect(row?.textContent ?? '').toContain('Text must be readable against its background.')
     expect(row?.textContent ?? '').toContain('Darken the text')
     expect(row?.textContent ?? '').toContain('.tag')
@@ -120,6 +120,6 @@ describe('the shipped report script', () => {
   it('escapes a requirement that names an element', () => {
     const withMarkup = model()
     const document = paint({ ...withMarkup, checks: [{ ...withMarkup.checks[0]!, fix: 'Mark the title as <h1>.' }] }).dom.window.document
-    expect(document.querySelector('#checks tbody tr')?.textContent ?? '').toContain('<h1>')
+    expect(document.querySelector('#checks .finding-card')?.textContent ?? '').toContain('<h1>')
   })
 })
