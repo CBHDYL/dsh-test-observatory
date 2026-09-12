@@ -72,7 +72,10 @@ describe('renderReport', () => {
     expect(document.querySelectorAll('#personas .persona')).toHaveLength(1)
     expect(document.querySelectorAll('#evidenceGrid .evidence')).toHaveLength(1)
     expect(document.querySelectorAll('#tbody tr')).toHaveLength(1)
-    expect(document.getElementById('heroScore')?.textContent).toBe('88')
+    // The gauge shows the share of executed tests that passed. It used to show
+    // a weighted quality score this package invented, which no reader could act on.
+    expect(document.getElementById('heroScore')?.textContent).toBe('90%')
+    expect(document.getElementById('heroScoreLabel')?.textContent).toBe('TEST PASS RATE')
     ;(document.querySelector('#tbody tr') as HTMLElement).click()
     expect(document.getElementById('outCommand')?.textContent).toBe('expected true')
     expect(document.getElementById('outNote')?.textContent).toContain('Attempts: 2')

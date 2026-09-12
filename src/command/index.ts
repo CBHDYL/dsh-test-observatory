@@ -185,16 +185,16 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
               : retried > 0
               ? retried + ' test(s) passed only after a retry.'
               : findings > 0 ? 'Every executed test passed; ' + findings + ' scan finding(s) need review.'
-                : experienceRisk ? 'Automated tests passed; experience checks scored ' + experienceScore + '/100.' : 'Every test passed.'
+                : experienceRisk ? 'Every executed test passed; the browser run recorded findings.' : 'Every test passed.'
           const needsReview = hasRisk || experienceRisk
           return {
             ...model.verdict,
             score: combinedScore,
             headline,
             label: needsReview ? 'Suite needs review' : 'Suite passing',
-            summary: historyCounts.failed > 0 ? 'Review the failing tests before release.' : retried > 0 ? 'At least one test needed more than one attempt; treat its result as provisional.' : experienceRisk ? 'The test suite passed, but browser observations found release risks.' : 'The test suite completed without failures.',
-            confidence: passRate + '% stable pass rate' + (experienceScore === undefined ? '' : ' · ' + experienceScore + '/100 experience score'),
-            risk: historyCounts.failed > 0 ? 'Historical comparison found tests that passed in the previous run and fail now.' : retried > 0 ? 'Historical comparison found tests that needed a retry, which a single run cannot distinguish from flakiness.' : experienceRisk ? 'Experience checks scored ' + experienceScore + '/100; inspect browser findings before release.' : 'No failing test in this run.',
+            summary: historyCounts.failed > 0 ? 'Review the failing tests before release.' : retried > 0 ? 'At least one test needed more than one attempt; treat its result as provisional.' : experienceRisk ? 'The executed tests passed. The browser run recorded findings the tests do not cover.' : 'The test suite completed without failures.',
+            confidence: passRate + '% test pass rate' + (findings > 0 ? ' · ' + String(findings) + ' open finding(s)' : ''),
+            risk: historyCounts.failed > 0 ? 'Historical comparison found tests that passed in the previous run and fail now.' : retried > 0 ? 'Historical comparison found tests that needed a retry, which a single run cannot distinguish from flakiness.' : experienceRisk ? 'No test failed. The browser run recorded findings the tests do not cover; inspect them before release.' : 'No failing test in this run.',
           }
         })(),
         kpis: [
