@@ -381,7 +381,7 @@ describe('buildReportModel', () => {
     expect(model.verdict.score).toBe(100)
     expect(model.verdict.headline).toContain('Every executed test passed')
     expect(model.verdict.label).toBe('Suite passing · findings open')
-    expect(model.causes).toEqual([{ label: 'Open scan finding', count: 1 }])
+    expect(model.causes).toEqual([{ label: 'Open static-analysis result', count: 1 }])
   })
 
   it('summarizes a failing run and ranks the slowest cases', () => {
