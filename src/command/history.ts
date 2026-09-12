@@ -7,6 +7,9 @@
  * stopped matching and a genuine regression could never be reported again.
  * Flakiness is not decidable from a handful of runs, so this module reports
  * only what it observed: a status change between the previous run and this one.
+ * A comparison also needs both runs to be the same revision, so the commit is
+ * stored with every snapshot and a trend, regression or recovery is derived
+ * only from stored runs that recorded the same one.
  * The single-run instability signal the report shows is the per-test attempt
  * count a framework itself reported, never an inferred flaky verdict.
  * @module @cbhdyl/dsh-test-observatory/command/history
@@ -21,6 +24,8 @@ interface Snapshot {
   readonly runAt: string
   readonly score: number
   readonly durationSeconds: number
+  /** Revision the run recorded, empty when the workspace could not name one. */
+  readonly commit: string
   readonly tests: readonly Pick<ReportTest, 'name' | 'path' | 'status'>[]
 }
 
@@ -59,7 +64,23 @@ export async function projectHistory(path: string, model: ReportModel): Promise<
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
   }
-  const previous = history.runs.at(-1)
+  const commit = model.meta.commit
+  const snapshot: Snapshot = {
+    runId: model.meta.runId,
+    runAt: model.meta.runAt,
+    score: model.verdict.score,
+    durationSeconds: model.summary.durationSeconds,
+    commit,
+    tests: model.tests.map(({ name, path: testPath, status }) => ({ name, path: testPath, status })),
+  }
+  const runs = [...history.runs, snapshot].slice(-MAX_RETAINED_RUNS)
+  // A run that recorded no revision has nothing to be compared with — not even
+  // another run that recorded none, because two unknowns are not known to be
+  // the same code. Only a non-empty commit shared with this run makes a stored
+  // run comparable, and a snapshot written before this field existed records
+  // none, so it stays out of every comparison rather than joining one by default.
+  const comparable = commit.length === 0 ? [] : runs.filter(run => run.commit === commit)
+  const previous = comparable.at(-2)
   const prior = new Map((previous?.tests ?? []).map(test => [key(test), test]))
   const regressions: Regression[] = []
   const recovered: RecoveredTest[] = []
@@ -68,14 +89,6 @@ export async function projectHistory(path: string, model: ReportModel): Promise<
     if (old?.status === 'passed' && test.status === 'failed') regressions.push({ name: test.name, scope: test.suite, severity: 'HIGH' })
     if (old?.status === 'failed' && test.status === 'passed') recovered.push({ name: test.name, evidence: 'Passed after failing in ' + String(previous?.runId) })
   }
-  const snapshot: Snapshot = {
-    runId: model.meta.runId,
-    runAt: model.meta.runAt,
-    score: model.verdict.score,
-    durationSeconds: model.summary.durationSeconds,
-    tests: model.tests.map(({ name, path: testPath, status }) => ({ name, path: testPath, status })),
-  }
-  const runs = [...history.runs, snapshot].slice(-MAX_RETAINED_RUNS)
   await mkdir(dirname(path), { recursive: true })
   const temporaryPath = path + '.tmp-' + String(process.pid) + '-' + String(Date.now())
   try {
@@ -86,7 +99,7 @@ export async function projectHistory(path: string, model: ReportModel): Promise<
     throw error
   }
   return {
-    trend: runs.map(run => ({ run: run.runId, score: run.score, durationSeconds: run.durationSeconds })),
+    trend: comparable.map(run => ({ run: run.runId, score: run.score, durationSeconds: run.durationSeconds })),
     regressions,
     recovered,
     tests: model.tests,

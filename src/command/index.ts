@@ -15,6 +15,7 @@ import { SuiteConfigError, loadSuiteConfig } from './config.ts'
 import { buildReportModel, runCase } from './runner.ts'
 import { toExperienceSection } from './experience.ts'
 import { describeDetection, detectProject } from './detect.ts'
+import { detectRevision } from './git.ts'
 import type { DeclaredSuite } from './detect.ts'
 import { readStructuredResult } from './structured.ts'
 import { NARRATIVE_SYSTEM, applyNarrative, buildNarrativePrompt, llmNarrativeWriter, parseRunNarrative } from './narrative.ts'
@@ -170,12 +171,16 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
     unchecked: total.unchecked + counts.unchecked,
     total: Math.max(total.total, counts.total),
   }), { matched: 0, added: 0, unmatched: 0, updated: 0, unchecked: 0, total: 0 }))
+  // The workspace, not the host process, is what the run describes, so the
+  // revision is read from there. A workspace that cannot answer leaves both
+  // empty and the report states no comparison rather than a false one.
+  const revision = await detectRevision(workspace)
   let model = buildReportModel(outcomes, {
     config,
     runAt: new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC',
     runId: String(Date.now()).slice(-6),
-    branch: '',
-    commit: '',
+    branch: revision.branch,
+    commit: revision.commit,
     environment: 'local',
     ...(experienceSection === undefined ? {} : { experienceSection }),
     ...(structuredTests.length === 0 ? {} : { structuredTests }),
