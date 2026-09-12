@@ -48,10 +48,7 @@ async function scan(document: Document): Promise<readonly { id: string; nodes: n
  * Rules this report does not yet satisfy, with what each one asks for. Every
  * entry is a known gap rather than an accepted design: the list may only shrink.
  */
-const KNOWN_GAPS: Readonly<Record<string, string>> = {
-  region: 'some content still sits outside a landmark',
-  'aria-tooltip-name': 'the chart tooltip carries no accessible name',
-}
+const KNOWN_GAPS: Readonly<Record<string, string>> = {}
 
 describe('the report against its own standard', () => {
   it('reports no accessibility violation axe can see beyond the known gaps', async () => {

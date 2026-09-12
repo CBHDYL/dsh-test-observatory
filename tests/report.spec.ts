@@ -119,12 +119,15 @@ describe('renderReport', () => {
     expect(html).toContain('could not be verified')
   })
 
-  it('ships a client-routed page per section with a fixed limits page', () => {
+  it('ships the four pages a reader asks about, with the limits fixed on the first', () => {
     const html=renderReport(fullModel())
-    // Every section declares the page it belongs to.
-    for(const page of ['summary','tests','experience','evidence','checks','limits']) {
+    // Every section declares the page it belongs to, and the pages are the four
+    // questions a report answers: may I ship, what ran, what did the journeys
+    // establish, and what is wrong.
+    for(const page of ['decision','executions','journeys','findings']) {
       expect(html).toContain('data-page="'+page+'"')
     }
+    expect(html).not.toContain('data-page="limits"')
     expect(html).toContain('id="pageNav"')
     // The limits prose is fixed, so a reader can always find it.
     expect(html).toContain('Rule-driven, not a user study')
