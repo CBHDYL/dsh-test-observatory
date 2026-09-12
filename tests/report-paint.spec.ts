@@ -86,7 +86,7 @@ describe('the shipped report script', () => {
     const source = model()
     const finding = { kind: 'finding' as const, name: 'PLR0402 · a.py:7', path: 'a.py', status: 'failed' as const, suite: 'Static analysis', durationSeconds: 0, owner: 'Team' }
     const document = paint({ ...source, tests: [...source.tests, finding] }).dom.window.document
-    expect(document.querySelector('#testsSubtitle')?.textContent ?? '').toContain('Explore 1 test and 1 scan finding across 2 suites')
+    expect(document.querySelector('#testsSubtitle')?.textContent ?? '').toContain('Explore 1 test and 1 static-analysis result across 2 suites')
   })
 
   it('marks a finding row so it cannot be read as a failing test, and filters by it', () => {

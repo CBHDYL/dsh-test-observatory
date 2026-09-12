@@ -38,7 +38,7 @@ export const REPORT_STYLE = `
 export const REPORT_BODY = `
 <header class="topbar"><div class="brand"><span class="logo"><svg class="icon" viewBox="0 0 24 24" style="color:white"><path d="M5 18V9m5 9V5m5 13v-7m4 7V3"/></svg></span>Test Observatory</div><div class="meta" id="runMeta"></div><div class="actions"><button class="btn" id="share"><svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg><span>Share</span></button><button class="btn" id="export"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 19h14"/></svg><span>Export PDF</span></button><button class="btn" id="theme" aria-label="Toggle theme"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c-4 2-9-1-9-9Z"/></svg></button></div></header><nav class="pages" id="pageNav" aria-label="Report sections"><button class="chip active" data-goto="decision">Decision</button><button class="chip" data-goto="executions">Executions</button><button class="chip" data-goto="journeys">Journeys</button><button class="chip" data-goto="findings">Findings</button></nav>
 <section data-page="decision" class="hero"><div><div class="eyebrow" id="heroEyebrow">Test report</div><h1 id="heroHeadline"></h1><p class="hero-copy" id="heroSummary"></p><p class="xp-note hidden" id="snapshotNote" style="margin-top:10px"></p><div class="verdict"><span class="pulse"></span><span id="heroVerdict"></span> <span style="color:var(--muted);font-weight:400" id="heroConfidence"></span></div><div class="risk" id="heroRiskBox"><b>Risk summary</b> · <span id="heroRisk"></span><p class="xp-note hidden" id="heroNarrative" style="margin:8px 0 0"></p></div><div style="margin-top:20px"><button class="btn primary" id="reviewFailures">Review <svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div></div><div class="score"><div class="gauge-wrap"><svg width="220" height="220" viewBox="0 0 220 220"><defs><linearGradient id="scoreGrad"><stop stop-color="#736cff"/><stop offset="1" stop-color="#1aa8ff"/></linearGradient></defs><circle class="gauge-bg" cx="110" cy="110" r="88"/><circle class="gauge" cx="110" cy="110" r="88"/></svg><div class="score-label"><strong id="heroScore">—</strong><span id="heroScoreLabel">TEST PASS RATE</span></div></div></div></section>
-<section data-page="decision" class="card section-card" id="actionsCard"><div class="section-head"><div><h2>What to fix</h2><p id="actionsSubtitle">Every open finding, worst first</p></div><span class="label" id="actionsCount"></span></div><div id="actions"></div></section>
+<section data-page="decision" class="card section-card" id="actionsCard"><div class="section-head"><div><h2>What to fix</h2><p id="actionsSubtitle">Every open finding, worst first</p></div><span class="label" id="actionsCount"></span></div><div id="actions"></div><p class="xp-note" id="actionsMore"></p></section>
 <section data-page="decision" class="kpis" id="kpis"></section>
 <section data-page="decision" class="grid"><div class="card section-card"><div class="section-head"><div><h2>Quality trajectory</h2><p id="trendCaption">Recent runs</p></div><div class="legend" id="trendLegend"><span><i class="dot" style="background:#635bff"></i>Quality score</span><span><i class="dot" style="background:#23a7e8"></i>Duration (scaled)</span></div></div><svg class="chart" id="trendChart" viewBox="0 0 700 240" preserveAspectRatio="none"></svg></div><div class="c... (line truncated to 2000 chars)
 <section data-page="decision" class="triple"><div class="card section-card"><div class="section-head"><div><h2>Failure causes</h2><p>Root-cause clustering</p></div></div><div class="bars" id="causes"></div></div><div class="card section-card"><div class="section-head"><div><h2>Slowest tests</h2><p>Optimization opportunities</p></div></div><div class="rank" id="slowest"></div></div><div class="card section-card"><div class="section-head"><div><h2>Runtime timeline</h2><p id="timelineSubtitle">Suite execution</p></div></div><div class="gantt" id="gantt"></div>
@@ -86,12 +86,13 @@ applyModel(MODEL);
 function applyActions(m){
   var host=document.getElementById('actions');
   if(!host||!m)return;
-  var found=(m.checks||[]).slice().sort(function(a,b){return (a.severity==='high'?0:1)-(b.severity==='high'?0:1)});
+  var all=(m.checks||[]).slice().sort(function(a,b){return (a.severity==='high'?0:1)-(b.severity==='high'?0:1)});var found=all.slice(0,3);var rest=all.length-found.length;
   var count=document.getElementById('actionsCount');
   if(count)count.textContent=found.length?found.length+' open':'none';
   var sub=document.getElementById('actionsSubtitle');
   if(sub)sub.textContent=found.length?'Every open finding, worst first':'Nothing is open in this run';
   if(!found.length){host.innerHTML='<p class="xp-note">The run recorded no open finding: every executed test passed and the browser checks reported nothing.</p>';return}
+  var more=document.getElementById('actionsMore');if(more)more.textContent=rest?('All '+String(all.length)+' are on the Findings page.'):'';
   host.innerHTML=found.map(function(c){
     return '<article class="action"><div class="action-head"><span class="badge '+(c.severity==='high'?'failed':'flaky')+'">'+esc(c.severity)+'</span><b>'+esc(c.rule)+'</b><span class="action-where">'+esc(c.persona)+'</span></div>'
       +(c.cropDataUri?'<img class="action-crop" src="'+c.cropDataUri+'" alt="The elements this finding measured" loading="lazy">':'')
@@ -173,7 +174,7 @@ function applySubtitles(m){
     var pick=document.getElementById('suite');
     if(pick){var chosen=pick.value;pick.innerHTML='<option value="all">All suites</option>'+suites.map(function(s){return '<option>'+esc(s)+'</option>'}).join('');pick.value=suites.indexOf(chosen)>=0?chosen:'all'}
     var scope=executed+' test'+(executed===1?'':'s')+(findings===0?'':' and '+findings+' scan finding'+(findings===1?'':'s'));
-    sub.textContent='Explore '+scope+' across '+suites.length+' suite'+(suites.length===1?'':'s')+' · click any row to inspect evidence';
+    sub.textContent='Explore '+executed+' test'+(executed===1?'':'s')+' and '+findings+' static-analysis result'+(findings===1?'':'s')+' across '+suites.length+' suite'+(suites.length===1?'':'s')+' · click any row to inspect evidence';
   }
   /* The snapshot sentence states what the baselines did. It appears only when the
      run declared snapshots, because a project without them has nothing to say. */
