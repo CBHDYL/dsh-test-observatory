@@ -37,7 +37,7 @@ function escape(text: string): string {
 const html = readFileSync(resolve(source), 'utf8')
 const parts = {
   REPORT_STYLE: region(html, /<style>([\s\S]*?)<\/style>/, 'style'),
-  REPORT_BODY: region(html, /<div class="shell">([\s\S]*?)<!--OBSERVATORY_OVERLAY-->/, 'body'),
+  REPORT_BODY: region(html, /<div class="shell"[^>]*>([\s\S]*?)<!--OBSERVATORY_OVERLAY-->/, 'body'),
   REPORT_OVERLAY: region(html, /<!--OBSERVATORY_OVERLAY-->([\s\S]*?)<!--OBSERVATORY_SCRIPT-->/, 'overlay').trim(),
   REPORT_SCRIPT: region(html, /<!--OBSERVATORY_SCRIPT--><script>([\s\S]*?)<\/script>/, 'client script'),
 }
