@@ -18,6 +18,7 @@ import { describeDetection, detectProject } from './detect.ts'
 import { readStructuredResult } from './structured.ts'
 import { NARRATIVE_SYSTEM, applyNarrative, buildNarrativePrompt, llmNarrativeWriter, parseRunNarrative } from './narrative.ts'
 import { llmDecide } from '../experience/agent.ts'
+import { confidenceOf, decideRunVerdict } from '../experience/verdict.ts'
 import type { NarrativeLlm } from './narrative.ts'
 import type { ReportModel } from '../report/types.ts'
 import type { SuiteConfig } from './types.ts'
@@ -210,6 +211,18 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
       return { kind: 'error', text: `test history could not be updated: ${error instanceof Error ? error.message : String(error)}` }
     }
   }
+  // The run verdict consumes the journeys' own verdicts and every finding the
+  // browser recorded, so a cleared suite cannot read as a cleared product.
+  const verdictInputs = {
+    journeys: (experienceSection?.journeys ?? []).map(journey => ({ verdict: journey.verdict ?? ('INCONCLUSIVE' as const), persona: journey.personaId })),
+    findings: (experienceSection?.checks ?? []).map(check => ({ severity: check.severity, family: check.family, persona: check.persona })),
+    failingTests: model.summary.failed,
+    coverageKnown: model.summary.coveragePercent !== null,
+    commit: model.meta.commit,
+  }
+  const runDecision = decideRunVerdict(verdictInputs)
+  model = { ...model, verdict: { ...model.verdict, label: runDecision.verdict, confidence: confidenceOf(verdictInputs), reasons: [...runDecision.reasons] } }
+
   const annotated = await annotate(ctx, model, config, invocation.signal)
   model = annotated.model
   const document = renderReport(model)

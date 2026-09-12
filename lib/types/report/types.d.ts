@@ -144,17 +144,6 @@ export interface Persona {
     /** What that policy changes, such as `keyboard-only` or `slow3g`. */
     readonly behaviorDimensions?: readonly string[];
 }
-/** One step of a persona journey. */
-export interface JourneyStep {
-    /** Step label. */
-    readonly label: string;
-    /** Settled step state. */
-    readonly state: 'PASS' | 'FAIL' | 'BLOCKED';
-    /** Observed duration in seconds, or null when the step never ran. */
-    readonly seconds: number | null;
-    /** Captures recorded while this step ran. */
-    readonly evidenceIds?: readonly string[];
-}
 /** One simulated task performed by a persona. */
 export interface JourneyStep {
     /** Step label or the agent action taken. */
@@ -181,6 +170,20 @@ export interface Journey {
     readonly name: string;
     /** Ordered observed steps. */
     readonly steps: readonly JourneyStep[];
+    /**
+     * What this journey established, decided from the assertions it made and the
+     * findings recorded on the pages it visited. A journey whose steps ran has
+     * not necessarily proved anything.
+     */
+    readonly verdict?: 'PASS' | 'FAIL' | 'INCONCLUSIVE';
+    /** Every fact behind the verdict, in the order it was considered. */
+    readonly verdictReasons?: readonly string[];
+    /** Assertions the journey made; zero means it established only that pages loaded. */
+    readonly assertions?: number;
+    /** Why an agent-driven journey stopped. */
+    readonly stopReason?: string;
+    /** What the agent expected and could not find. */
+    readonly obstacles?: readonly string[];
 }
 /** One captured screenshot referenced by the report. */
 export interface EvidenceShot {
@@ -376,6 +379,11 @@ export interface Verdict {
     readonly confidence: string;
     /** One factual sentence about the run, always present. */
     readonly risk: string;
+    /**
+     * Every fact the verdict was decided from, in the order it was considered.
+     * A reader has to be able to see why a run was not cleared.
+     */
+    readonly reasons?: readonly string[];
     /**
      * Model-written summary of the same facts. Absent unless the run configured a
      * model route, so a reader can tell an interpretation from the report's own
