@@ -49,7 +49,9 @@ describe('checkKeyboard', () => {
     mount('<button id="a" style="outline:none;width:40px;height:20px">a</button><button id="b" style="outline:none;width:40px;height:20px">b</button>', '')
     const findings = await checkKeyboard(fakePage() as unknown as Page)
     const finding = findings.find(entry => entry.rule === 'keyboard-focus-not-visible')
-    expect(finding?.severity).toBe('medium')
+    // Every reachable element in this fixture loses its indicator, so the finding
+    // blocks the task rather than annoying one control at a time.
+    expect(finding?.severity).toBe('high')
     expect(finding?.detail).toContain('2 of 2')
     expect(finding?.evidence).toHaveLength(2)
   })

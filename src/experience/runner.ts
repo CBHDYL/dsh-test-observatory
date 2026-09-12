@@ -188,6 +188,7 @@ async function runGoalJourney(
         ...base,
         steps: [{ label: 'start', state: 'BLOCKED', durationMs: 0, error: 'the journey could not open ' + spec.start + ': ' + (error instanceof Error ? error.message : String(error)) }],
         passed: false,
+        assertions: 0,
         trace: [],
         obstacles: [],
         stopReason: 'error',
@@ -199,6 +200,7 @@ async function runGoalJourney(
       ...base,
       steps: [{ label: 'agent', state: 'BLOCKED', durationMs: 0, error: 'the journey declares a goal but no model route is configured, so no agent could run it' }],
       passed: false,
+      assertions: 0,
       trace: [],
       obstacles: [],
       stopReason: 'error',
@@ -226,6 +228,7 @@ async function runGoalJourney(
   return {
     ...base,
     steps,
+    assertions: 0,
     passed: run.reached,
     trace: run.trace,
     obstacles: run.obstacles,
@@ -288,11 +291,17 @@ async function runJourney(
       blocked = true
     }
   }
+  // Only a step that settled contributes its assertions: an assertion that
+  // never ran, or ran against a page that failed earlier, proves nothing.
+  const assertions = (spec.steps ?? []).reduce((count, step, index) => steps[index]?.state !== 'PASS'
+    ? count
+    : count + step.actions.filter(action => action.kind === 'expectText' || action.kind === 'expectVisible').length, 0)
   return {
     persona: spec.persona,
     device: spec.device,
     name: spec.name,
     steps,
+    assertions,
     passed: steps.every(step => step.state === 'PASS'),
     behavior,
     behaviorDimensions: behaviorDimensions(behavior),

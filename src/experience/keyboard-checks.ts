@@ -81,10 +81,14 @@ export async function checkKeyboard(page: Page): Promise<readonly VisualViolatio
       if (!drawsFocus(window.getComputedStyle(focusable))) withoutIndicator.push(candidate)
     }
     if (withoutIndicator.length > 0) {
+      // Losing the focus indicator on one control is a nuisance; losing it on
+      // most of the page means a keyboard user cannot tell where they are, which
+      // blocks the task. The severity follows the share, not the rule id.
+      const withoutShare = candidates.length === 0 ? 0 : withoutIndicator.length / candidates.length
       found.push({
         rule: 'keyboard-focus-not-visible',
         detail: String(withoutIndicator.length) + ' of ' + String(candidates.length) + ' reachable element(s) draw no visible focus indicator',
-        severity: 'medium',
+        severity: withoutShare >= 0.5 ? 'high' : 'medium',
         evidence: withoutIndicator.slice(0, 10).map(elementInfo),
       })
     }

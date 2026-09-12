@@ -5,6 +5,8 @@
  */
 
 import { findDuplicateEvidence, guidanceFor, scoreRun } from '../experience/index.ts'
+import { decideJourneyVerdict } from '../experience/verdict.ts'
+import type { VerdictFinding } from '../experience/verdict.ts'
 import type { CheckFinding as RunCheckFinding, ExperienceRun, JourneyOutcome, RuleGuidance } from '../experience/index.ts'
 import type { CheckFinding, EvidenceShot, ExperienceScore, FindingEvidence, Journey, Persona, UxFinding } from '../report/index.ts'
 
@@ -91,9 +93,28 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
     behaviorId: journey.behavior.id,
     ...(journey.behaviorDimensions.length === 0 ? {} : { behaviorDimensions: journey.behaviorDimensions }),
   }))
-  const journeys: Journey[] = run.journeys.map(journey => ({
+  // A journey verdict consumes the findings measured on this run, so a page a
+  // keyboard journey visited cannot report success while a blocking keyboard
+  // finding stands against it.
+  const verdictFindings: VerdictFinding[] = run.checks.flatMap(group => [
+    ...group.visual.map(check => ({ severity: check.severity, family: 'visual' as const, persona: group.persona })),
+    ...group.accessibility.map(check => ({ severity: check.severity, family: 'accessibility' as const, persona: group.persona })),
+    ...group.keyboard.map(check => ({ severity: check.severity, family: 'keyboard' as const, persona: group.persona })),
+  ])
+  const journeys: Journey[] = run.journeys.map(journey => {
+    const decision = decideJourneyVerdict({
+      persona: journey.persona,
+      stepsPassed: journey.passed,
+      assertions: journey.assertions,
+      agentDriven: journey.stopReason !== undefined,
+      keyboard: journey.behavior.modality.pointer === false,
+    }, verdictFindings)
+    return {
     personaId: personaId(journey.persona),
     name: journey.name,
+    assertions: journey.assertions,
+    verdict: decision.verdict,
+    verdictReasons: [...decision.reasons],
     steps: journey.steps.map((step, index) => ({
       label: step.label,
       state: step.state,
@@ -104,7 +125,8 @@ export function toExperienceSection(run: ExperienceRun): ExperienceSection {
     })),
     ...(journey.stopReason === undefined ? {} : { stopReason: journey.stopReason }),
     ...(journey.obstacles === undefined ? {} : { obstacles: journey.obstacles }),
-  }))
+    }
+  })
   // Two journeys that open the same page capture the same bytes; the report
   // must say so rather than present one observation as several.
   const duplicateOf = new Map(findDuplicateEvidence(run.shots.map(shot => ({ id: shot.id, imageDataUri: shot.dataUri }))).map((entry): [string, string] => [entry.id, entry.firstId]))

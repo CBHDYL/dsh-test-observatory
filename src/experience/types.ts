@@ -141,6 +141,12 @@ export interface JourneyOutcome {
   readonly behaviorDimensions: readonly string[]
   /** Conditions the browser actually emulated, when any were applied. */
   readonly appliedEnvironment?: readonly string[]
+  /**
+   * Assertions the journey made: steps that compared what the page shows
+   * against what was declared. A journey with none established only that its
+   * pages loaded, whatever its steps reported.
+   */
+  readonly assertions: number
   /** Every turn of an agent-driven journey, in order. */
   readonly trace?: readonly TraceEntry[]
   /** What the agent expected and could not find. */
