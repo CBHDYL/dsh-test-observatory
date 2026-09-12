@@ -11,6 +11,30 @@ function renderer(): string {
   return REPORT_SCRIPT.slice(start, next < 0 ? undefined : next)
 }
 
+describe('the answer block', () => {
+  it('renders every open finding, worst first, with its picture and its fix', () => {
+    const start = REPORT_SCRIPT.indexOf('function applyActions(')
+    const source = REPORT_SCRIPT.slice(start, REPORT_SCRIPT.indexOf('function applyCharts('))
+    expect(source.length).toBeGreaterThan(200)
+    expect(source).toContain("a.severity==='high'?0:1")
+    expect(source).toContain('c.cropDataUri')
+    expect(source).toContain('c.requirement')
+    expect(source).toContain('c.fix')
+    expect(source).toContain('esc(c.detail)')
+    expect(source).toContain('esc(c.evidence[0].selector)')
+  })
+
+  it('says so plainly when nothing is open', () => {
+    const start = REPORT_SCRIPT.indexOf('function applyActions(')
+    expect(REPORT_SCRIPT.slice(start, REPORT_SCRIPT.indexOf('function applyCharts('))).toContain('recorded no open finding')
+  })
+
+  it('runs before the rest of the summary is painted', () => {
+    expect(REPORT_SCRIPT.indexOf('applyActions(MODEL);')).toBeGreaterThan(0)
+    expect(REPORT_SCRIPT.indexOf('applyActions(MODEL);')).toBeLessThan(REPORT_SCRIPT.indexOf('applyModel(MODEL);'))
+  })
+})
+
 describe('journey rail rendering', () => {
   it('carries the agent reasoning and result from the report model', () => {
     const source = REPORT_SCRIPT.slice(REPORT_SCRIPT.indexOf('const journeys='), REPORT_SCRIPT.indexOf('function renderJourney('))
