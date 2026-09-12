@@ -201,6 +201,21 @@ export interface Journey {
 }
 
 /** One captured screenshot referenced by the report. */
+/**
+ * The run facts an item of evidence is traceable to. A capture that cannot be
+ * placed in a run, a journey and a step is a picture, not evidence.
+ */
+export interface EvidenceProvenance {
+  /** Run that produced it. */
+  readonly runId: string
+  /** When it was captured, in the report's own clock. */
+  readonly capturedAt: string
+  /** SHA-256 of the stored image, so two reports can be compared by content. */
+  readonly artifactHash: string
+  /** Rules of the findings whose elements appear in this capture. */
+  readonly findingRules: readonly string[]
+}
+
 export interface EvidenceShot {
   /** Stable capture id referenced by steps and findings. */
   readonly id?: string

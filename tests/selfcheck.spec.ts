@@ -75,6 +75,12 @@ describe('report self check', () => {
     expect(violations.map(v => v.rule)).toContain('unknown-coverage-not-stated')
   })
 
+  it('names evidence that cannot be placed in a run', () => {
+    const shot = { id: 'e1', title: 't', personaId: 'p', journey: 'J', stepLabel: 's', kind: 'key' as const, meta: 'm', imageDataUri: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' }
+    const violations = verifyReport(model({ evidence: [shot] }))
+    expect(violations.map(v => v.rule)).toContain('evidence-without-provenance')
+  })
+
   it('catches evidence that is not self-contained', () => {
     const shot = { id: 'e1', title: 't', personaId: 'p', journey: 'J', stepLabel: 's', kind: 'key' as const, meta: 'm', imageDataUri: 'https://example.test/a.png' }
     const violations = verifyReport(model({ evidence: [shot] }))

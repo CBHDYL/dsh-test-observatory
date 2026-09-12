@@ -90,6 +90,13 @@ export function verifyReport(model: ReportModel): readonly SelfCheckViolation[] 
   }
 
   for (const shot of model.evidence ?? []) {
+    // A picture that cannot be placed in a run is a picture, not evidence.
+    if (shot.provenance === undefined || shot.provenance.artifactHash.length === 0) {
+      violations.push({
+        rule: 'evidence-without-provenance',
+        detail: 'capture ' + JSON.stringify(shot.id) + ' carries no run, time or content hash to trace it by',
+      })
+    }
     if (!(shot.imageDataUri ?? '').startsWith('data:image/')) {
       violations.push({
         rule: 'evidence-not-self-contained',
