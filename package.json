@@ -87,6 +87,7 @@
     "@deepseek-ai/dsh-commands": "^0.1.0-alpha.1",
     "@deepseek-ai/dsh-llm": "^0.1.0-alpha.1",
     "@deepseek-ai/dsh-tools": "^0.1.0-alpha.1",
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^22.20.0",
     "jsdom": "^28.0.0",
     "tsdown": "^0.22.2",

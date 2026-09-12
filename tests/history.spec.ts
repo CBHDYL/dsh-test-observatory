@@ -12,9 +12,9 @@ const model = (runId: string, status: TestStatus): ReportModel => ({
   meta: { project: 'p', branch: '', commit: '', environment: 'local', runAt: runId, runId },
   verdict: { score: status === 'failed' ? 0 : 100, headline: '', label: '', summary: '', confidence: '', risk: '' },
   kpis: [],
-  summary: { total: 1, passed: status === 'passed' ? 1 : 0, failed: status === 'failed' ? 1 : 0, skipped: 0, flaky: 0, durationSeconds: 1, coveragePercent: null },
+  summary: { total: 1, passed: status === 'passed' ? 1 : 0, failed: status === 'failed' ? 1 : 0, findings: 0, skipped: 0, flaky: 0, durationSeconds: 1, coveragePercent: null },
   trend: [], causes: [], slowest: [], timeline: [], regressions: [], recovered: [],
-  tests: [{ name: 'case', path: 'a.ts', status, suite: 'unit', durationSeconds: 1, owner: 'team' }],
+  tests: [{ kind: 'test', name: 'case', path: 'a.ts', status, suite: 'unit', durationSeconds: 1, owner: 'team' }],
 })
 
 describe('projectHistory', () => {

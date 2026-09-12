@@ -1,3 +1,8 @@
+---
+description: "The Test Observatory profile layer: the /test command and the run_tests tool that run a declared test suite, drive real browser journeys, and write one self-contained HTML report."
+kind: "package-bundle"
+---
+
 # @cbhdyl/dsh-test-observatory
 
 English | [中文](README.zh.md)
@@ -109,6 +114,17 @@ The commands a person types:
 /test auto                detect the project and print a declaration to paste
 ```
 
+#### Model interpretation
+
+Set `report.narrative` to a provider and model and the run asks that route to explain its own recorded facts — one summary sentence, plus a what-it-means and what-to-do line for each browser finding. The model receives a bounded digest of what the report already shows and an instruction that forbids naming anything absent from it; an interpretation for a rule the run did not report is discarded. Without the setting the report carries no model-written text, and a failed call leaves the report complete and names the failure in the command output.
+
+```yaml
+report:
+  narrative:
+    provider: deepseek
+    model: deepseek-chat
+```
+
 #### Structured results
 
 A case expands into real test-level rows when its command writes an artifact. Set `result.format` to `junit`, `pytest`, `vitest`, `jest`, `playwright`, `api`, `performance` or `sarif`, and set `result.path` relative to the session working directory. History is retained for 20 runs by default; set `report.historyPath: false` to disable it.
@@ -154,9 +170,9 @@ Without a browser the journey pass fails loudly instead of reporting a false pas
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [Test Runner subsystem](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/test-runner.md) — the test-case and run-summary types, execution model, and report contract.
-- [Generated tool catalog](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/tool-catalog.md#cbhdyldsh-test-observatory) — the `run_tests` schema the model receives.
-- [test-runner group](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/test-runner/README.md) — where this package sits.
+- [Test Runner subsystem](../../../docs/subsystems/test-runner.md) — the test-case and run-summary types, execution model, and report contract.
+- [Generated tool catalog](../../../docs/tool-catalog.md#cbhdyldsh-test-observatory) — the `run_tests` schema the model receives.
+- [test-runner group](../README.md) — where this package sits.
 - [USAGE.zh.md](USAGE.zh.md) — a walkthrough for writing a suite file against a real project.
 
 -----
@@ -168,7 +184,7 @@ Without a browser the journey pass fails loudly instead of reporting a false pas
 
 #### What the model sees
 
-The model sees the generated [`run_tests` schema](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/tool-catalog.md#cbhdyldsh-test-observatory). Optional `expectedExitCode` and `timeoutMs`, the acceptance of an empty `testCases` array, and the absolute-path requirement on `reportPath` are stated in the schema itself.
+The model sees the generated [`run_tests` schema](../../../docs/tool-catalog.md#cbhdyldsh-test-observatory). Optional `expectedExitCode` and `timeoutMs`, the acceptance of an empty `testCases` array, and the absolute-path requirement on `reportPath` are stated in the schema itself.
 
 #### Token effect
 
@@ -203,7 +219,9 @@ These limits tell you when the observatory is incomplete or needs deployment coo
 - **Screenshots are embedded as data URIs** — a capture over 400 KB is re-encoded and finally dropped if still too large, and a dropped capture is reported as a capture defect rather than silently omitted.
 - **History keeps the latest 20 compact run snapshots** in `.test-observatory/history.json`; delete the file to reset comparisons.
 - **Structured results report exactly the rows their artifact contains** — a deselected or skipped case the artifact omits cannot appear, and no supported format supplies a known-total denominator.
-- **`/test auto` prints a starter declaration from project and script detection** — it infers neither `result.format` artifacts nor journeys.
+- **`/test auto` prints a starter declaration from project and script detection** — it infers neither `result.format` artifacts nor journeys. A directory that already declares a suite is told which file declares how many cases, never asked to declare one.
+- **Nothing is shown until the run settles** — the command vocabulary carries only `command/run` and `command/done`, so a run reports its outcome once, after the journeys finish (tens of seconds). A progress surface needs a host session event and a client plugin, neither of which this package ships.
+- **Relative paths resolve against the session workspace, not the suite file** — `result.path`, `outputPath` and `historyPath` are read from the workspace because case commands already run there. Pointing `/test` at a suite outside the workspace prints the root it used.
 
 <a id="dev-note"></a>
 ### Dev Note

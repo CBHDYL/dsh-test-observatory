@@ -12,10 +12,16 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { CommandDefinition, CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import { describe, expect, it } from 'vitest'
 import * as commandPlugin from '../src/command/index.ts'
+
+/**
+ * The Agent as the command contract carries it. Deriving the type instead of
+ * importing the harness package keeps these fixtures honest about what the
+ * handler actually receives.
+ */
+type Agent = CommandInvocation['agent']
 
 /** The slice of the command registry and context that the /test module uses. */
 interface Harness {
@@ -67,6 +73,26 @@ describe('/test command wire-up', () => {
     expect(result.text).toContain('cases:')
   })
 
+  it('points "auto" at the suite the directory already declares', async () => {
+    const scratch = await workspace()
+    await writeFile(join(scratch, 'test-observatory.yml'), ['cases:', '  - name: Greets', '    command: echo hello', ''].join('\n'))
+    const result = await (await mount(scratch)).run('auto')
+    expect(result.kind).toBe('success')
+    expect(result.text).toContain('already declares 1 case(s)')
+    expect(result.text).toContain('Run /test to execute it.')
+    expect(result.text).not.toContain('Declare them yourself')
+  })
+
+  it('says which root a suite outside the workspace resolves its paths against', async () => {
+    const scratch = await workspace()
+    const other = await workspace()
+    await writeFile(join(other, 'suite.yml'), ['cases:', '  - name: Greets', '    command: echo hello', ''].join('\n'))
+    const result = await (await mount(scratch)).run(join(other, 'suite.yml'))
+    expect(result.kind).toBe('success')
+    expect(result.text).toContain('is outside the workspace')
+    expect(result.text).toContain(scratch)
+  })
+
   it('reports a missing configuration file together with the usage text', async () => {
     const result = await (await mount(await workspace())).run('')
     expect(result.kind).toBe('error')
@@ -110,12 +136,16 @@ describe('/test command wire-up', () => {
     expect(result.text).toContain('Failed: Fails here')
   })
 
-  it('refuses a structured result it cannot read and says which case', async () => {
+  it('reports a structured result it cannot read instead of discarding the run', async () => {
     const scratch = await workspace()
     await writeFile(join(scratch, 'suite.yml'), ['report:', '  historyPath: false', 'cases:', '  - name: Broken artifact', '    command: "true"', '    result:', '      format: junit', '      path: missing.xml', ''].join('\n'))
     const result = await (await mount(scratch)).run('suite.yml')
-    expect(result.kind).toBe('error')
-    expect(result.text).toContain('could not read structured result for Broken artifact')
+    expect(result.kind).toBe('success')
+    expect(result.text).toContain('0/1 tests passed')
+    expect(result.text).toContain('Failed: Broken artifact')
+    const report = await readFile(join(scratch, 'test-observatory-report.html'), 'utf8')
+    expect(report).toContain('declared structured result could not be read')
+    expect(report).toContain('missing.xml')
   })
 
   it('expands a readable structured result into per-test rows', async () => {

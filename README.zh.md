@@ -1,3 +1,8 @@
+---
+description: "Test Observatory 的 profile 表层：/test 命令与 run_tests 工具，运行声明的测试套件、驱动真实浏览器旅程，并写出 1 份自包含 HTML 报告。"
+kind: "package-bundle"
+---
+
 # @cbhdyl/dsh-test-observatory
 
 [English](README.md) | 中文
@@ -109,6 +114,17 @@ journeys:
 /test auto                detect the project and print a declaration to paste
 ```
 
+#### 模型解读
+
+把 `report.narrative` 设为某个 provider 与 model，本轮运行就会让该路由解释它自己记录的事实——一句摘要，外加每条浏览器发现的「意味着什么」与「该做什么」。模型收到的是报告本身已展示内容的有界摘要，以及一条禁止提及摘要之外任何事物的指令；对本次未报告的规则所作的解读会被丢弃。不设置该项时报告不含任何模型撰写的文字；调用失败时报告仍完整，并在命令输出中说明失败原因。
+
+```yaml
+report:
+  narrative:
+    provider: deepseek
+    model: deepseek-chat
+```
+
 #### 结构化结果
 
 当一个用例的命令写出产物文件时，它会展开为真实的测试级行。把 `result.format` 设为 `junit`、`pytest`、`vitest`、`jest`、`playwright`、`api`、`performance` 或 `sarif`，并把 `result.path` 设为相对会话工作目录的路径。历史默认保留 20 轮运行；把 `report.historyPath` 设为 `false` 可关闭。
@@ -154,9 +170,9 @@ export DSH_BROWSER_EXECUTABLE=/path/to/chrome
 <a id="further-exploration"></a>
 ## 延伸阅读
 
-- [Test Runner 子系统](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/test-runner.zh.md)——测试用例与整轮汇总类型、执行模型与报告契约。
-- [生成的工具目录](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/tool-catalog.zh.md#cbhdyldsh-test-observatory)——模型接收的 `run_tests` schema。
-- [test-runner 组](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/test-runner/README.zh.md)——本包所在的组。
+- [Test Runner 子系统](../../../docs/subsystems/test-runner.zh.md)——测试用例与整轮汇总类型、执行模型与报告契约。
+- [生成的工具目录](../../../docs/tool-catalog.zh.md#cbhdyldsh-test-observatory)——模型接收的 `run_tests` schema。
+- [test-runner 组](../README.zh.md)——本包所在的组。
 - [USAGE.zh.md](USAGE.zh.md)——面向真实项目编写套件文件的完整走查。
 
 -----
@@ -168,7 +184,7 @@ export DSH_BROWSER_EXECUTABLE=/path/to/chrome
 
 #### 模型看到的内容
 
-模型看到生成的 [`run_tests` schema](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/tool-catalog.zh.md#cbhdyldsh-test-observatory)。可选的 `expectedExitCode` 与 `timeoutMs`、允许空的 `testCases` 数组，以及 `reportPath` 必须为绝对路径，都写在 schema 本身里。
+模型看到生成的 [`run_tests` schema](../../../docs/tool-catalog.zh.md#cbhdyldsh-test-observatory)。可选的 `expectedExitCode` 与 `timeoutMs`、允许空的 `testCases` 数组，以及 `reportPath` 必须为绝对路径，都写在 schema 本身里。
 
 #### Token 影响
 
@@ -203,7 +219,9 @@ export DSH_BROWSER_EXECUTABLE=/path/to/chrome
 - **截图以 data URI 内嵌**——超过 400 KB 的截图会被重新编码，仍然过大时最终丢弃；被丢弃的截图会作为捕获缺陷报告，而不是被悄悄省略。
 - **历史把最近 20 份紧凑运行快照**保存在 `.test-observatory/history.json`；删除该文件即可重置比较。
 - **结构化结果只报告产物中实际包含的行**——产物未记录的被取消选择或被跳过的用例无法出现，且没有任何受支持的格式提供已知总数分母。
-- **`/test auto` 依据项目与脚本探测打印一份起始声明**——它既不推断 `result.format` 产物，也不推断旅程。
+- **`/test auto` 依据项目与脚本探测打印一份起始声明**——它既不推断 `result.format` 产物，也不推断旅程。若该目录已经声明了套件，它会指出是哪个文件声明了多少条，而不会让人去重复声明。
+- **运行结束前不显示任何内容**——命令词汇只有 `command/run` 与 `command/done`，因此一次运行（含旅程时长达数十秒）只在结束时报告结果。要做进度面需要宿主 side 的 session event 加一个客户端插件，本包两者都没有。
+- **相对路径相对会话工作区解析，而不是相对套件文件**——`result.path`、`outputPath`、`historyPath` 都从工作区读取，因为用例命令本身就在那里执行。把 `/test` 指向工作区之外的套件时，输出会打印它实际使用的工作区根。
 
 <a id="dev-note"></a>
 ### 开发备注

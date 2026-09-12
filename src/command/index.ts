@@ -15,6 +15,7 @@ import { SuiteConfigError, loadSuiteConfig } from './config.ts'
 import { buildReportModel, runCase } from './runner.ts'
 import { toExperienceSection } from './experience.ts'
 import { describeDetection, detectProject } from './detect.ts'
+import type { DeclaredSuite } from './detect.ts'
 import { readStructuredResult } from './structured.ts'
 import { NARRATIVE_SYSTEM, applyNarrative, buildNarrativePrompt, llmNarrativeWriter, parseRunNarrative } from './narrative.ts'
 import { llmDecide } from '../experience/agent.ts'
@@ -22,7 +23,7 @@ import { confidenceOf, decideRunVerdict } from '../experience/verdict.ts'
 import { verifyReport } from '../report/selfcheck.ts'
 import { createHash } from 'node:crypto'
 import type { NarrativeLlm } from './narrative.ts'
-import type { ReportModel } from '../report/types.ts'
+import type { ReportModel, ReportTest } from '../report/types.ts'
 import type { SuiteConfig } from './types.ts'
 import { describeSnapshots } from './snapshots.ts'
 import type { SnapshotCounts } from './snapshots.ts'
@@ -86,11 +87,27 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
   const argument = invocation.rawInput.trim()
   if (argument === 'auto') {
     const directory = invocation.agent.session.header.cwd ?? process.cwd()
-    return { kind: 'success', text: describeDetection(await detectProject(directory), directory) }
+    const detection = await detectProject(directory)
+    const suitePath = resolve(directory, DEFAULT_CONFIG)
+    let declared: DeclaredSuite | undefined
+    try {
+      declared = { path: suitePath, cases: (await loadSuiteConfig(suitePath)).cases.length }
+    } catch {
+      // No readable suite in this directory, so detection proposes one instead.
+      declared = undefined
+    }
+    return { kind: 'success', text: describeDetection(detection, directory, declared) }
   }
 
   const workspace = invocation.agent.session.header.cwd ?? process.cwd()
   const configPath = resolve(workspace, argument.length === 0 ? DEFAULT_CONFIG : argument)
+  // The workspace is the execution root: case commands already run there, so a
+  // suite that lives elsewhere still resolves its relative artifact paths
+  // against the workspace. A reader who pointed at another project's suite has
+  // to be told which root was used, or a missing artifact looks like a bug.
+  const suiteNote = dirname(configPath) === workspace
+    ? ''
+    : `\nNote: ${configPath} is outside the workspace, so its relative paths (result.path, outputPath, historyPath) resolve against ${workspace}.`
   let config
   try {
     config = await loadSuiteConfig(configPath)
@@ -120,7 +137,7 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
       // that it could not run rather than passing vacuously.
       ...(agentDecide === undefined ? {} : { agentDecide }),
     }))
-  const structuredTests = []
+  const structuredTests: ReportTest[] = []
   const snapshotCounts = []
   for (const outcome of outcomes) {
     if (outcome.testCase.result === undefined) continue
@@ -129,7 +146,20 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
       structuredTests.push(...read.tests)
       if (read.snapshots !== undefined) snapshotCounts.push(read.snapshots)
     } catch (error: unknown) {
-      return { kind: 'error', text: `could not read structured result for ${outcome.testCase.name}: ${error instanceof Error ? error.message : String(error)}` }
+      // A declared structured result that cannot be read means the suite and
+      // the artifacts on disk disagree. That is a fact about this one case, so
+      // it is reported as a failed row rather than thrown away with the whole
+      // report for the cases that did run.
+      structuredTests.push({
+        kind: 'test',
+        name: outcome.testCase.name,
+        path: outcome.testCase.result.path,
+        status: 'failed',
+        suite: outcome.testCase.suite ?? 'Suite',
+        durationSeconds: Math.round(outcome.durationMs / 10) / 100,
+        owner: outcome.testCase.owner ?? 'Unassigned',
+        error: 'declared structured result could not be read: ' + (error instanceof Error ? error.message : String(error)),
+      })
     }
   }
   const snapshotSentence = snapshotCounts.length === 0 ? undefined : describeSnapshots(snapshotCounts.reduce<SnapshotCounts>((total, counts) => ({
@@ -274,5 +304,5 @@ async function execute(invocation: CommandInvocation, ctx: Context): Promise<Com
   const detail = failedTests.length === 0
     ? ''
     : `\nFailed: ${failedTests.map(test => test.name).join(', ')}`
-  return { kind: 'success', text: headline + detail }
+  return { kind: 'success', text: headline + detail + suiteNote }
 }

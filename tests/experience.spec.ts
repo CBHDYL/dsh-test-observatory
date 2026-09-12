@@ -18,6 +18,7 @@ function journey(persona: string, states: readonly ('PASS' | 'FAIL' | 'BLOCKED')
   return {
     behavior: DEFAULT_BEHAVIOR,
     behaviorDimensions: [],
+    assertions: 0,
     persona,
     device: 'Desktop',
     name: persona + ' task',

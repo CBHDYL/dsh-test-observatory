@@ -247,6 +247,27 @@ export interface EvidenceShot {
    * correct one.
    */
   readonly integrityDefects?: readonly EvidenceDefect[]
+  /**
+   * Where the capture came from and the rules it is evidence for. Absent only
+   * when the run did not attribute the capture, which the report must state.
+   */
+  readonly provenance?: EvidenceProvenance
+}
+
+/**
+ * Traceability record for one capture: the run that produced it, when, a hash
+ * of the exact image payload, and the findings measured on the same page.
+ * Without it a picture cannot be placed in a run or tied to its rule.
+ */
+export interface EvidenceProvenance {
+  /** Run that produced the capture. */
+  readonly runId: string
+  /** Timestamp of the run that produced the capture. */
+  readonly capturedAt: string
+  /** Short digest of the image payload, so two captures can be told apart. */
+  readonly artifactHash: string
+  /** Rules measured for the same persona when the capture was taken. */
+  readonly findingRules: readonly string[]
 }
 
 /** One integrity defect recorded against a capture. */

@@ -6,7 +6,6 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { CommandDefinition, CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import { describe, expect, it } from 'vitest'
 import * as commandPlugin from '../src/command/index.ts'
@@ -21,6 +20,13 @@ import {
 import type { NarrativeLlm } from '../src/command/narrative.ts'
 import { renderReport } from '../src/report/render.ts'
 import type { CheckFinding, ReportModel, ReportTest } from '../src/report/types.ts'
+
+/**
+ * The Agent as the command contract carries it. Deriving the type instead of
+ * importing the harness package keeps these fixtures honest about what the
+ * handler actually receives.
+ */
+type Agent = CommandInvocation['agent']
 
 /** One finding the run recorded. */
 function finding(overrides: Partial<CheckFinding> = {}): CheckFinding {
@@ -48,7 +54,7 @@ function model(overrides: Partial<ReportModel> = {}): ReportModel {
     kpis: [],
     summary: { total: 2, passed: 1, failed: 1, findings: 1, skipped: 0, flaky: 0, durationSeconds: 3, coveragePercent: null },
     trend: [], causes: [], slowest: [], timeline: [], regressions: [], recovered: [],
-    tests: [test(), test({ name: 'passes', status: 'passed', error: undefined })],
+    tests: [test(), test({ name: 'passes', status: 'passed' })],
     checks: [finding()],
     ...overrides,
   } as ReportModel
@@ -133,6 +139,10 @@ describe('narrative writer', () => {
     }
     let sent: unknown
     const capturing: NarrativeLlm = { stream: (options) => { sent = options; return (async function* () { yield { type: 'text-delta', text: '{"risk":"ok","findings":[]}' } })() } }
+    // The reasoning delta above must not reach the reply, so the writer is
+    // driven with the streaming fixture as well as the capturing one.
+    const streamed = await llmNarrativeWriter(llm, { provider: 'p', model: 'm' })({ system: 's', prompt: 'the digest', signal: new AbortController().signal })
+    expect(streamed).toBe('{"risk":"ok","findings":[]}')
     const reply = await llmNarrativeWriter(capturing, { provider: 'p', model: 'm' })({ system: 's', prompt: 'the digest', signal: new AbortController().signal })
     expect(reply).toBe('{"risk":"ok","findings":[]}')
     // A string content is rejected by the real adapter, so the writer must send blocks.

@@ -141,7 +141,7 @@ describe('parseSuiteConfig journeys', () => {
     const config = parseSuiteConfig(journeyYaml)
     expect(config.journeys).toHaveLength(1)
     expect(config.journeys?.[0]?.viewport).toEqual({ width: 1440, height: 900 })
-    expect(config.journeys?.[0]?.steps[0]?.actions).toEqual([
+    expect(config.journeys?.[0]?.steps?.[0]?.actions).toEqual([
       { kind: 'goto', url: 'http://example.test/' },
       { kind: 'screenshot', caption: 'Shot', category: 'key' },
     ])
@@ -170,7 +170,7 @@ describe('parseSuiteConfig journeys', () => {
       '    command: x',
       '',
     ].join('\n'))
-    expect(config.journeys?.[0]?.steps[0]?.actions).toHaveLength(4)
+    expect(config.journeys?.[0]?.steps?.[0]?.actions).toHaveLength(4)
   })
 
   it('rejects a non-mapping journey entry and a non-mapping step', () => {
@@ -181,7 +181,7 @@ describe('parseSuiteConfig journeys', () => {
 
   it('carries a step timeout when declared', () => {
     const config = parseSuiteConfig('journeys:\n  - persona: P\n    name: N\n    device: D\n    steps:\n      - label: s\n        timeoutMs: 500\n        actions:\n          - kind: goto\n            url: u\ncases:\n  - name: a\n    command: x')
-    expect(config.journeys?.[0]?.steps[0]?.timeoutMs).toBe(500)
+    expect(config.journeys?.[0]?.steps?.[0]?.timeoutMs).toBe(500)
   })
 
   it('rejects malformed journeys with the offending position', () => {
@@ -218,8 +218,8 @@ describe('toExperienceSection', () => {
       shots: [],
       checks: [],
       journeys: [
-        { persona: '首次访问用户', device: 'Desktop', name: '结账', passed: true, behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [], steps: [{ label: '打开', state: 'PASS' as const, durationMs: 10 }] },
-        { persona: '熟练用户', device: 'Desktop', name: '批量下单', passed: false, behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [], steps: [{ label: '提交', state: 'FAIL' as const, durationMs: 10, error: '超时' }] },
+        { persona: '首次访问用户', device: 'Desktop', name: '结账', passed: true, behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [], assertions: 0, steps: [{ label: '打开', state: 'PASS' as const, durationMs: 10 }] },
+        { persona: '熟练用户', device: 'Desktop', name: '批量下单', passed: false, behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [], assertions: 0, steps: [{ label: '提交', state: 'FAIL' as const, durationMs: 10, error: '超时' }] },
       ],
     }
     const section = toExperienceSection(run)
@@ -291,6 +291,25 @@ describe('detectProject', () => {
     expect(text).toContain('cases:')
     expect(text).toContain('pnpm run test')
     expect(text).toContain('project: atlas')
+  })
+
+  it('points at the suite a directory already declares instead of asking for one', async () => {
+    scratch = await mkdtemp(join(tmpdir(), 'dsh-detect-declared-'))
+    const declared = { path: join(scratch, 'test-observatory.yml'), cases: 40 }
+    const text = describeDetection(await detectProject(scratch), scratch, declared)
+    expect(text).toContain('already declares 40 case(s)')
+    expect(text).toContain('Run /test to execute it.')
+    expect(text).not.toContain('Declare them yourself')
+  })
+
+  it('offers the detected checks as a replacement when a suite already exists', async () => {
+    scratch = await mkdtemp(join(tmpdir(), 'dsh-detect-replace-'))
+    await writeFile(join(scratch, 'package.json'), JSON.stringify({ name: 'atlas', scripts: { test: 'x' } }))
+    const declared = { path: join(scratch, 'test-observatory.yml'), cases: 2 }
+    const text = describeDetection(await detectProject(scratch), scratch, declared)
+    expect(text).toContain('already declares 2 case(s)')
+    expect(text).toContain('To replace it')
+    expect(text).toContain('pnpm run test')
   })
 })
 

@@ -19,7 +19,7 @@ function model(): ReportModel {
     trend: [], causes: [{ label: 'Open static-analysis result', count: 1 }], slowest: [], timeline: [],
     regressions: [], recovered: [],
     tests: [{ kind: 'test', name: 'renders', path: 'a.test.ts', status: 'passed', suite: 'Unit', durationSeconds: 0.5, owner: 'Team' }],
-    experience: { total: 90, band: 'Excellent', tasksObserved: 1, tasksCompleted: 1, blockers: 0, recoverablePoints: 0, dimensions: [], visualFindings: 0, accessibilityFindings: 1 },
+    experience: { total: 90, band: 'Excellent', tasksObserved: 1, tasksCompleted: 1, blockers: 0, recoverablePoints: 0, dimensions: [] },
     personas: [{ id: 'new', name: 'First-time visitor', device: 'Desktop', tasks: 1, completionPercent: 100, headline: 'Discovery' }],
     journeys: [{ personaId: 'new', name: 'Open the storefront', steps: [{ label: 'Open', state: 'PASS', seconds: 1 }], verdict: 'FAIL', assertions: 1, verdictReasons: ['the run recorded 1 blocking keyboard finding'] }],
     evidence: [{ id: 'e1', title: 'Storefront', personaId: 'new', journey: 'Open the storefront', stepLabel: 'Open', kind: 'key', meta: 'Desktop', imageDataUri: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' }],

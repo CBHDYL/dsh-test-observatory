@@ -159,7 +159,7 @@ describe('report placeholder stripping', () => {
   const minimal = (overrides: Partial<ReportModel>): ReportModel => ({
     meta: { project: 'p', branch: '', commit: '', environment: 'local', runAt: 'now', runId: 'r' },
     verdict: { score: 100, headline: 'ok', label: 'ok', summary: 'ok', confidence: 'ok', risk: 'none' },
-    kpis: [], summary: { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0, durationSeconds: 0, coveragePercent: null },
+    kpis: [], summary: { total: 0, passed: 0, failed: 0, findings: 0, skipped: 0, flaky: 0, durationSeconds: 0, coveragePercent: null },
     trend: [], causes: [], slowest: [], timeline: [], regressions: [], recovered: [], tests: [], ...overrides,
   })
 

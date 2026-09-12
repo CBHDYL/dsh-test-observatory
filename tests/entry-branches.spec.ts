@@ -77,12 +77,12 @@ describe('wait action validation', () => {
 
   it('accepts a wait with no ms and no selector', () => {
     const config = parseSuiteConfig([...prefix, '          - kind: wait', ''].join('\n'))
-    expect(config.journeys?.[0]?.steps[0]?.actions).toEqual([{ kind: 'wait' }])
+    expect(config.journeys?.[0]?.steps?.[0]?.actions).toEqual([{ kind: 'wait' }])
   })
 
   it('accepts a wait targeting a selector', () => {
     const config = parseSuiteConfig([...prefix, '          - kind: wait', '            ms: 250', '            selector: "#ready"', ''].join('\n'))
-    expect(config.journeys?.[0]?.steps[0]?.actions).toEqual([{ kind: 'wait', ms: 250, selector: '#ready' }])
+    expect(config.journeys?.[0]?.steps?.[0]?.actions).toEqual([{ kind: 'wait', ms: 250, selector: '#ready' }])
   })
 
   it('rejects a wait selector that is empty or not a string', () => {
@@ -102,9 +102,9 @@ describe('history write failure', () => {
   const model = (): ReportModel => ({
     meta: { project: 'p', branch: '', commit: '', environment: 'local', runAt: 'now', runId: 'r1' },
     verdict: { score: 100, headline: 'ok', label: 'ok', summary: 'ok', confidence: 'ok', risk: 'none' },
-    kpis: [], summary: { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0, durationSeconds: 0, coveragePercent: null },
+    kpis: [], summary: { total: 0, passed: 0, failed: 0, findings: 0, skipped: 0, flaky: 0, durationSeconds: 0, coveragePercent: null },
     trend: [], causes: [], slowest: [], timeline: [], regressions: [], recovered: [],
-    tests: [{ name: 't', path: 'p.ts', status: 'passed', suite: 'S', durationSeconds: 1, owner: 'O' }],
+    tests: [{ kind: 'test', name: 't', path: 'p.ts', status: 'passed', suite: 'S', durationSeconds: 1, owner: 'O' }],
   })
 
   it('removes its temporary file and rethrows when persistence fails', async () => {
@@ -134,9 +134,9 @@ describe('history persistence failure', () => {
       meta: { project: 'p', branch: '', commit: '', environment: 'local', runAt: 'now', runId: 'r' },
       verdict: { score: 1, headline: '', label: '', summary: '', confidence: '', risk: '' },
       kpis: [],
-      summary: { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0, durationSeconds: 0, coveragePercent: null },
+      summary: { total: 0, passed: 0, failed: 0, findings: 0, skipped: 0, flaky: 0, durationSeconds: 0, coveragePercent: null },
       trend: [], causes: [], slowest: [], timeline: [], regressions: [], recovered: [],
-      tests: [{ name: 't', path: 'p.ts', status: 'passed' as const, suite: 'S', durationSeconds: 1, owner: 'O' }],
+      tests: [{ kind: 'test' as const, name: 't', path: 'p.ts', status: 'passed' as const, suite: 'S', durationSeconds: 1, owner: 'O' }],
     }
     await expect(projectHistory(blocked, model)).rejects.toThrow()
     const { readdir } = await import('node:fs/promises')
@@ -148,7 +148,7 @@ describe('report section stripping', () => {
   const minimal = (overrides: Partial<ReportModel>): ReportModel => ({
     meta: { project: 'p', branch: '', commit: '', environment: 'local', runAt: 'now', runId: 'r' },
     verdict: { score: 100, headline: 'ok', label: 'ok', summary: 'ok', confidence: 'ok', risk: 'none' },
-    kpis: [], summary: { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0, durationSeconds: 0, coveragePercent: null },
+    kpis: [], summary: { total: 0, passed: 0, failed: 0, findings: 0, skipped: 0, flaky: 0, durationSeconds: 0, coveragePercent: null },
     trend: [], causes: [], slowest: [], timeline: [], regressions: [], recovered: [], tests: [], ...overrides,
   })
 

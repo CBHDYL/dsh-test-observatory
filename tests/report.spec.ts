@@ -9,7 +9,7 @@ function fullModel(): ReportModel {
     meta: { project: 'Atlas & Co', branch: 'main', commit: 'abc123', environment: 'staging', runAt: 'now', runId: '#1' },
     verdict: { score: 88, headline: 'Headline <b>', label: 'Release Ready', summary: 'Summary', confidence: '88%', risk: 'Risk' },
     kpis: [{ label: 'Pass rate', value: '90%', delta: 'up' }, { label: 'Failed', value: '1', delta: 'down', worse: true }],
-    summary: { total: 10, passed: 9, failed: 1, skipped: 0, flaky: 0, durationSeconds: 12, coveragePercent: null },
+    summary: { total: 10, passed: 9, failed: 1, findings: 0, skipped: 0, flaky: 0, durationSeconds: 12, coveragePercent: null },
     trend: [{ run: '#1', score: 88, durationSeconds: 12 }],
     causes: [{ label: 'Timeout', count: 1 }],
     slowest: [{ rank: 1, name: 'slow case', suite: 'Suite', durationSeconds: 3 }],
@@ -24,7 +24,7 @@ function fullModel(): ReportModel {
     journeys: [{ personaId: 'new', name: 'Checkout', steps: [{ label: 'Open', state: 'PASS', seconds: 1 }] }],
     evidence: [{ title: 'Shot', personaId: 'new', kind: 'key', meta: 'Desktop' }],
     findings: [{ id: 'f1', severity: 'HIGH', dimension: 'Feedback', deductedPoints: 2, title: 'No progress', observation: 'Observed', scope: 'Checkout', recoverablePoints: 2, evidenceIds: ['evidence-1'] }],
-    tests: [{ name: 'case', path: 'a.ts', status: 'failed', suite: 'Suite', durationSeconds: 1, owner: 'Team', error: 'expected true', attempts: 2, framework: 'playwright', attachments: [{ name: 'trace', kind: 'trace', path: 'trace.zip' }] }],
+    tests: [{ kind: 'test', name: 'case', path: 'a.ts', status: 'failed', suite: 'Suite', durationSeconds: 1, owner: 'Team', error: 'expected true', attempts: 2, framework: 'playwright', attachments: [{ name: 'trace', kind: 'trace', path: 'trace.zip' }] }],
   }
 }
 
@@ -94,7 +94,7 @@ describe('renderReport', () => {
   })
 
   it('escapes attachment name, kind, and path against injection', () => {
-    const model={ ...fullModel(),tests:[{ name:'<img src=x onerror=alert(1)>',path:'a.ts',status:'failed' as const,suite:'Unit',durationSeconds:1,owner:'Team',attachments:[{ name:'"><script>alert(2)</script>',kind:'trace' as const,path:'evil.zip"><script>alert(3)</script>' }] }] }
+    const model={ ...fullModel(),tests:[{ kind:'test' as const,name:'<img src=x onerror=alert(1)>',path:'a.ts',status:'failed' as const,suite:'Unit',durationSeconds:1,owner:'Team',attachments:[{ name:'"><script>alert(2)</script>',kind:'trace' as const,path:'evil.zip"><script>alert(3)</script>' }] }] }
     const html=renderReport(model)
     expect(html).not.toContain('<script>alert(2)</script>')
     expect(html).not.toContain('<script>alert(3)</script>')

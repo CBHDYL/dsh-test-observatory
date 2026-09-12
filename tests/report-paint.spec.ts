@@ -28,7 +28,6 @@ function model(): ReportModel {
     experience: {
       total: 90, band: 'Excellent', tasksObserved: 1, tasksCompleted: 1, blockers: 0, recoverablePoints: 0,
       dimensions: [{ label: 'Accessibility', earned: 8, available: 10 }],
-      visualFindings: 0, accessibilityFindings: 1,
     },
     personas: [{ id: 'new', name: '首次访问用户', device: 'Desktop · Chrome', tasks: 1, completionPercent: 100, headline: 'Discovery' }],
     journeys: [{ personaId: 'new', name: 'Open the storefront', steps: [{ label: 'Open', state: 'PASS', seconds: 1 }] }],
@@ -117,9 +116,31 @@ describe('the shipped report script', () => {
     expect(document.querySelector('#dDuration')?.textContent).toBe('500ms')
   })
 
+  it('opens on a painted page instead of hiding every page', () => {
+    const document = paint(model()).dom.window.document
+    const active = Array.from(document.querySelectorAll('[data-page].page-active')).map(node => (node as HTMLElement).dataset.page)
+    expect(active.length).toBeGreaterThan(0)
+    expect(new Set(active)).toEqual(new Set(['decision']))
+  })
+
+  it('navigates only to the pages this document contains', () => {
+    const document = paint(model()).dom.window.document
+    const pages = Array.from(document.querySelectorAll('[data-page]')).map(node => (node as HTMLElement).dataset.page)
+    const nav = Array.from(document.querySelectorAll('#pageNav [data-goto]')).map(node => (node as HTMLElement).dataset.goto)
+    expect([...nav].sort()).toEqual([...new Set(pages)].sort())
+  })
+
+  it('drops the journey and finding pages, and their buttons, from a run without experience data', () => {
+    const { experience, personas, journeys, evidence, findings, checks, ...bare } = model()
+    const document = paint(bare as ReportModel).dom.window.document
+    const nav = Array.from(document.querySelectorAll('#pageNav [data-goto]')).map(node => (node as HTMLElement).dataset.goto)
+    expect(nav).toEqual(['decision', 'executions'])
+    expect(document.querySelectorAll('[data-page].page-active').length).toBeGreaterThan(0)
+  })
+
   it('escapes a requirement that names an element', () => {
     const withMarkup = model()
-    const document = paint({ ...withMarkup, checks: [{ ...withMarkup.checks[0]!, fix: 'Mark the title as <h1>.' }] }).dom.window.document
+    const document = paint({ ...withMarkup, checks: [{ ...withMarkup.checks![0]!, fix: 'Mark the title as <h1>.' }] }).dom.window.document
     expect(document.querySelector('#checks .finding-card')?.textContent ?? '').toContain('<h1>')
   })
 })

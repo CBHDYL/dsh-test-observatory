@@ -13,7 +13,7 @@ function step(label: string, state: StepOutcome['state'], extra: Partial<StepOut
 
 /** One settled journey. */
 function journey(persona: string, name: string, steps: readonly StepOutcome[]): JourneyOutcome {
-  return { persona, device: 'Desktop · Chrome', name, steps, passed: steps.every(item => item.state === 'PASS'), behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [] }
+  return { persona, device: 'Desktop · Chrome', name, steps, passed: steps.every(item => item.state === 'PASS'), behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [], assertions: 0 }
 }
 
 /** A run containing only the given journeys. */
@@ -35,8 +35,8 @@ describe('personaId', () => {
 describe('toExperienceSection', () => {
   it('records the behaviour policy each persona ran under', () => {
     const section = toExperienceSection(run([
-      { persona: 'Keyboard user', device: 'Desktop', name: 'Tab through', steps: [step('reach', 'PASS')], passed: true, behavior: presetById('keyboard')!, behaviorDimensions: behaviorDimensions(presetById('keyboard')!) },
-      { persona: 'Neutral', device: 'Desktop', name: 'Plain', steps: [step('open', 'PASS')], passed: true, behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [] },
+      { persona: 'Keyboard user', device: 'Desktop', name: 'Tab through', steps: [step('reach', 'PASS')], passed: true, behavior: presetById('keyboard')!, behaviorDimensions: behaviorDimensions(presetById('keyboard')!), assertions: 0 },
+      { persona: 'Neutral', device: 'Desktop', name: 'Plain', steps: [step('open', 'PASS')], passed: true, behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [], assertions: 0 },
     ]))
     // The keyboard preset both removes the pointer and declares an escape hatch.
     expect(section.personas[0]).toMatchObject({ behaviorId: 'keyboard', behaviorDimensions: ['keyboard-only', 'recovery-paths'] })

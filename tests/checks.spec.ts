@@ -23,6 +23,7 @@ function journey(persona: string): JourneyOutcome {
   return {
     behavior: DEFAULT_BEHAVIOR,
     behaviorDimensions: [],
+    assertions: 0,
     persona, device: 'Desktop', name: 'task', passed: true,
     steps: [{ label: 's', state: 'PASS', durationMs: 10 }],
   }

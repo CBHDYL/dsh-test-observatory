@@ -118,14 +118,34 @@ export async function detectProject(directory: string): Promise<Detection> {
   return { projectType: 'unrecognized project', checks: [] }
 }
 
+/** A suite declaration already present in the inspected directory. */
+export interface DeclaredSuite {
+  /** Absolute path of the declaration that was read. */
+  readonly path: string
+  /** Number of cases it declares. */
+  readonly cases: number
+}
+
 /**
  * Render a detection as the YAML declaration a human can paste and run.
+ *
+ * A directory that already declares a suite is never told to declare one: the
+ * answer to "what can I run here" is the suite that exists, and telling a
+ * maintainer to write what they already wrote reads as a broken command.
  * @param detection - what detection found.
  * @param directory - the directory that was inspected, used in the heading.
+ * @param declared - the suite already declared in that directory, when one is.
  * @returns the report text.
  */
-export function describeDetection(detection: Detection, directory: string): string {
+export function describeDetection(detection: Detection, directory: string, declared?: DeclaredSuite): string {
   if (detection.checks.length === 0) {
+    if (declared !== undefined) {
+      return [
+        'No runnable checks detected in ' + directory + ' (' + detection.projectType + ').',
+        declared.path + ' already declares ' + String(declared.cases) + ' case(s).',
+        'Run /test to execute it.',
+      ].join('\n')
+    }
     return [
       'No runnable checks detected in ' + directory + ' (' + detection.projectType + ').',
       'Declare them yourself in test-observatory.yml:',
@@ -138,14 +158,17 @@ export function describeDetection(detection: Detection, directory: string): stri
   const lines = [
     'Detected ' + detection.projectType + ' in ' + directory + ':',
     ...detection.checks.map(check => '  - ' + check.name + '  (' + check.command + ')'),
-    '',
-    'Paste this into test-observatory.yml, then run /test:',
-    '',
-    'report:',
-    '  project: ' + detection.projectType,
-    '  outputPath: test-observatory-report.html',
-    'cases:',
   ]
+  if (declared === undefined) {
+    lines.push('', 'Paste this into test-observatory.yml, then run /test:')
+  } else {
+    lines.push(
+      '',
+      declared.path + ' already declares ' + String(declared.cases) + ' case(s); /test runs it as it stands.',
+      'To replace it, paste this instead:',
+    )
+  }
+  lines.push('', 'report:', '  project: ' + detection.projectType, '  outputPath: test-observatory-report.html', 'cases:')
   for (const check of detection.checks) {
     lines.push('  - name: ' + check.name)
     lines.push('    command: ' + check.command)

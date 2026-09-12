@@ -26,10 +26,22 @@ export interface Detection {
  * @returns the detection result.
  */
 export declare function detectProject(directory: string): Promise<Detection>;
+/** A suite declaration already present in the inspected directory. */
+export interface DeclaredSuite {
+    /** Absolute path of the declaration that was read. */
+    readonly path: string;
+    /** Number of cases it declares. */
+    readonly cases: number;
+}
 /**
  * Render a detection as the YAML declaration a human can paste and run.
+ *
+ * A directory that already declares a suite is never told to declare one: the
+ * answer to "what can I run here" is the suite that exists, and telling a
+ * maintainer to write what they already wrote reads as a broken command.
  * @param detection - what detection found.
  * @param directory - the directory that was inspected, used in the heading.
+ * @param declared - the suite already declared in that directory, when one is.
  * @returns the report text.
  */
-export declare function describeDetection(detection: Detection, directory: string): string;
+export declare function describeDetection(detection: Detection, directory: string, declared?: DeclaredSuite): string;

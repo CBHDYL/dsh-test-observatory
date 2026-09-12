@@ -110,7 +110,7 @@ describe('keyboard check tolerances', () => {
 
 describe('accessibility scoring', () => {
   /** One journey that passed every step. */
-  const journey: JourneyOutcome = { persona: 'P', device: 'D', name: 'J', steps: [{ label: 's', state: 'PASS', durationMs: 10 }], passed: true, behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [] }
+  const journey: JourneyOutcome = { persona: 'P', device: 'D', name: 'J', steps: [{ label: 's', state: 'PASS', durationMs: 10 }], passed: true, behavior: DEFAULT_BEHAVIOR, behaviorDimensions: [], assertions: 0 }
 
   /** A run whose only accessibility finding has the given severity. */
   function runWith(severity: 'high' | 'medium'): ExperienceRun {
